@@ -784,7 +784,7 @@
     if (prefix && keyMap[candidate2]) {
       clearTimeout(keyBufferTimer);
       keyBuffer = "";
-      if (candidate2 === "/") event.preventDefault();
+      event.preventDefault();
       COMMAND_MAP[keyMap[candidate2]]?.(count);
       return;
     }
@@ -800,6 +800,8 @@
     // 2ストロークのプレフィックスになりうるか確認
     const isPrefix = Object.keys(keyMap).some((k) => k.length === 2 && k[0] === key);
     if (isPrefix) {
+      // ページ側のショートカット（GitHub等）と競合しないよう抑制
+      event.preventDefault();
       keyBuffer = key;
       clearTimeout(keyBufferTimer);
       keyBufferTimer = setTimeout(() => { keyBuffer = ""; }, 1500);
@@ -809,7 +811,8 @@
     // 1ストロークコマンド
     const command = keyMap[key];
     if (command) {
-      if (key === "/") event.preventDefault();
+      // ページ側のキーハンドラ（GitHub hotkey等）が defaultPrevented を確認する前に抑制する
+      event.preventDefault();
       COMMAND_MAP[command]?.(count);
     }
     keyBuffer = "";
