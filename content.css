@@ -1,0 +1,276 @@
+/* ===== Link Hints ===== */
+.vimium-hint-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  pointer-events: none;
+  z-index: 2147483647;
+}
+
+.vimium-hint {
+  position: absolute;
+  background: #ffff00;
+  color: #000;
+  font: bold 11px/1 monospace;
+  padding: 1px 3px;
+  border: 1px solid #aaa;
+  border-radius: 2px;
+  pointer-events: none;
+  white-space: nowrap;
+  box-shadow: 0 1px 3px rgba(0,0,0,0.4);
+  text-transform: uppercase;
+}
+
+.vimium-hint .vimium-hint-matched {
+  color: #888;
+}
+
+/* ===== HUD（ステータス表示） ===== */
+#vimium-hud {
+  position: fixed;
+  bottom: 0;
+  left: 0;
+  background: rgba(0, 0, 0, 0.75);
+  color: #fff;
+  font: 12px/1.5 monospace;
+  padding: 2px 8px;
+  z-index: 2147483647;
+  pointer-events: none;
+  border-top-right-radius: 4px;
+  max-width: 50vw;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  display: none;
+}
+
+#vimium-hud.visible {
+  display: block;
+}
+
+/* ===== Find Bar ===== */
+#vimium-find-bar {
+  position: fixed;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  background: #2b2b2b;
+  color: #fff;
+  display: none;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 10px;
+  z-index: 2147483647;
+  font: 13px/1.5 monospace;
+  box-shadow: 0 -2px 6px rgba(0,0,0,0.4);
+}
+
+#vimium-find-bar.visible {
+  display: flex;
+}
+
+#vimium-find-bar label {
+  color: #aaa;
+  flex-shrink: 0;
+}
+
+#vimium-find-input {
+  flex: 1;
+  background: transparent;
+  border: none;
+  outline: none;
+  color: #fff;
+  font: inherit;
+  caret-color: #fff;
+}
+
+#vimium-find-bar.no-match #vimium-find-input {
+  color: #f66;
+}
+
+#vimium-find-count {
+  color: #aaa;
+  font-size: 11px;
+  flex-shrink: 0;
+}
+
+/* ===== Vomnibar ===== */
+#vimium-vomnibar-backdrop {
+  position: fixed;
+  inset: 0;
+  background: rgba(0,0,0,0.4);
+  z-index: 2147483646;
+  display: none;
+}
+
+#vimium-vomnibar-backdrop.visible {
+  display: block;
+}
+
+#vimium-vomnibar {
+  position: fixed;
+  top: 15%;
+  left: 50%;
+  transform: translateX(-50%);
+  width: min(640px, 90vw);
+  background: #1e1e1e;
+  border: 1px solid #555;
+  border-radius: 6px;
+  z-index: 2147483647;
+  overflow: hidden;
+  box-shadow: 0 8px 32px rgba(0,0,0,0.6);
+  display: none;
+}
+
+#vimium-vomnibar.visible {
+  display: block;
+}
+
+#vimium-vomnibar-input-wrap {
+  display: flex;
+  align-items: center;
+  padding: 8px 12px;
+  border-bottom: 1px solid #444;
+  gap: 6px;
+}
+
+#vimium-vomnibar-input-wrap label {
+  color: #888;
+  font: 12px monospace;
+  flex-shrink: 0;
+}
+
+#vimium-vomnibar-input {
+  flex: 1;
+  background: transparent;
+  border: none;
+  outline: none;
+  color: #fff;
+  font: 14px monospace;
+  caret-color: #fff;
+}
+
+#vimium-vomnibar-list {
+  list-style: none;
+  margin: 0;
+  padding: 4px 0;
+  max-height: 320px;
+  overflow-y: auto;
+}
+
+#vimium-vomnibar-list li {
+  padding: 6px 14px;
+  cursor: pointer;
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+}
+
+#vimium-vomnibar-list li:hover,
+#vimium-vomnibar-list li.selected {
+  background: #2a4d8f;
+}
+
+#vimium-vomnibar-list .item-title {
+  color: #ddd;
+  font: 13px sans-serif;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+#vimium-vomnibar-list .item-url {
+  color: #888;
+  font: 11px monospace;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* ===== Help Dialog ===== */
+#vimium-help-backdrop {
+  position: fixed;
+  inset: 0;
+  background: rgba(0,0,0,0.5);
+  z-index: 2147483646;
+  display: none;
+}
+
+#vimium-help-backdrop.visible {
+  display: block;
+}
+
+#vimium-help {
+  position: fixed;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  background: #1e1e1e;
+  color: #ccc;
+  border: 1px solid #555;
+  border-radius: 8px;
+  z-index: 2147483647;
+  width: min(700px, 92vw);
+  max-height: 80vh;
+  overflow-y: auto;
+  padding: 20px 24px;
+  box-shadow: 0 8px 32px rgba(0,0,0,0.7);
+  display: none;
+  font: 13px/1.6 sans-serif;
+}
+
+#vimium-help.visible {
+  display: block;
+}
+
+#vimium-help h2 {
+  margin: 0 0 16px;
+  font-size: 16px;
+  color: #fff;
+  border-bottom: 1px solid #444;
+  padding-bottom: 8px;
+}
+
+#vimium-help h3 {
+  font-size: 12px;
+  color: #aaa;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  margin: 16px 0 6px;
+}
+
+#vimium-help table {
+  width: 100%;
+  border-collapse: collapse;
+  margin-bottom: 4px;
+}
+
+#vimium-help td {
+  padding: 3px 6px;
+  vertical-align: top;
+}
+
+#vimium-help td:first-child {
+  width: 90px;
+  font-family: monospace;
+  color: #ffcc00;
+  white-space: nowrap;
+}
+
+/* ===== Visual Mode カーソル ===== */
+.vimium-caret-mode * {
+  cursor: text !important;
+}
+
+/* ===== Find ハイライト ===== */
+::highlight(vimium-find-highlight) {
+  background-color: orange;
+  color: black;
+}
+
+::highlight(vimium-find-current) {
+  background-color: #f00;
+  color: #fff;
+}

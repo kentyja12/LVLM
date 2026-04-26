@@ -1,0 +1,788 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <title>Vimium Homemade — Settings</title>
+  <style>
+    /* ===== GitHub Dark テーマ ===== */
+    :root {
+      --bg:             #0d1117;
+      --surface:        #161b22;
+      --surface-2:      #21262d;
+      --surface-hover:  #30363d;
+      --border:         #30363d;
+      --border-muted:   #21262d;
+      --fg:             #e6edf3;
+      --fg-muted:       #8b949e;
+      --fg-subtle:      #6e7681;
+      --accent:         #58a6ff;
+      --accent-hl:      #1f6feb;
+      --green:          #3fb950;
+      --green-hl:       #238636;
+      --orange:         #d29922;
+      --red:            #f85149;
+      --red-hl:         #da3633;
+      --input-bg:       #0d1117;
+      --btn-bg:         #21262d;
+      --btn-border:     rgba(240,246,252,0.1);
+      --radius:         6px;
+    }
+
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    html { font-size: 14px; }
+
+    body {
+      background: var(--bg);
+      color: var(--fg);
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "Noto Sans", sans-serif;
+      line-height: 1.6;
+      min-height: 100vh;
+    }
+
+    /* ===== レイアウト ===== */
+    .page {
+      max-width: 800px;
+      margin: 0 auto;
+      padding: 32px 24px 80px;
+    }
+
+    /* ===== ヘッダー ===== */
+    .page-header {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      padding-bottom: 20px;
+      border-bottom: 1px solid var(--border);
+      margin-bottom: 32px;
+    }
+
+    .page-header-icon {
+      width: 36px;
+      height: 36px;
+      background: var(--accent-hl);
+      border-radius: 8px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 18px;
+      flex-shrink: 0;
+    }
+
+    .page-header h1 {
+      font-size: 20px;
+      font-weight: 600;
+      color: var(--fg);
+    }
+
+    .page-header p {
+      font-size: 12px;
+      color: var(--fg-muted);
+      margin-top: 1px;
+    }
+
+    /* ===== セクション ===== */
+    .section {
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      margin-bottom: 16px;
+      overflow: hidden;
+    }
+
+    .section-header {
+      padding: 16px 20px;
+      background: var(--surface);
+      border-bottom: 1px solid var(--border);
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+
+    .section-header-icon {
+      color: var(--fg-muted);
+      font-size: 16px;
+      width: 20px;
+      text-align: center;
+      flex-shrink: 0;
+    }
+
+    .section-header h2 {
+      font-size: 14px;
+      font-weight: 600;
+      color: var(--fg);
+    }
+
+    .section-header p {
+      font-size: 12px;
+      color: var(--fg-muted);
+      margin-top: 1px;
+    }
+
+    .section-body {
+      background: var(--bg);
+    }
+
+    /* ===== フォーム行 ===== */
+    .form-row {
+      display: flex;
+      align-items: flex-start;
+      justify-content: space-between;
+      gap: 24px;
+      padding: 16px 20px;
+      border-bottom: 1px solid var(--border-muted);
+    }
+
+    .form-row:last-child {
+      border-bottom: none;
+    }
+
+    .form-row-label {
+      flex: 1;
+      min-width: 0;
+    }
+
+    .form-row-label label {
+      display: block;
+      font-size: 13px;
+      font-weight: 500;
+      color: var(--fg);
+      margin-bottom: 2px;
+    }
+
+    .form-row-label .desc {
+      font-size: 12px;
+      color: var(--fg-muted);
+    }
+
+    .form-row-control {
+      flex-shrink: 0;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+
+    /* ===== スライダー ===== */
+    .slider-wrap {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+
+    input[type="range"] {
+      -webkit-appearance: none;
+      appearance: none;
+      width: 160px;
+      height: 4px;
+      background: var(--surface-hover);
+      border-radius: 2px;
+      outline: none;
+      cursor: pointer;
+    }
+
+    input[type="range"]::-webkit-slider-thumb {
+      -webkit-appearance: none;
+      width: 14px;
+      height: 14px;
+      border-radius: 50%;
+      background: var(--accent);
+      cursor: pointer;
+      border: 2px solid var(--bg);
+      box-shadow: 0 0 0 1px var(--accent);
+      transition: transform 0.1s;
+    }
+
+    input[type="range"]::-webkit-slider-thumb:hover {
+      transform: scale(1.15);
+    }
+
+    .range-badge {
+      min-width: 56px;
+      text-align: right;
+      font-family: "SFMono-Regular", Consolas, monospace;
+      font-size: 12px;
+      color: var(--accent);
+      background: rgba(88,166,255,0.1);
+      padding: 2px 8px;
+      border-radius: 12px;
+      border: 1px solid rgba(88,166,255,0.25);
+    }
+
+    /* ===== テキスト入力 ===== */
+    input[type="text"], textarea {
+      background: var(--input-bg);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      color: var(--fg);
+      font-family: "SFMono-Regular", Consolas, "Cascadia Code", monospace;
+      font-size: 13px;
+      outline: none;
+      transition: border-color 0.15s, box-shadow 0.15s;
+    }
+
+    input[type="text"]:focus, textarea:focus {
+      border-color: var(--accent);
+      box-shadow: 0 0 0 3px rgba(31,111,235,0.3);
+    }
+
+    input[type="text"] {
+      width: 280px;
+      padding: 6px 10px;
+      line-height: 1.4;
+    }
+
+    textarea {
+      width: 100%;
+      padding: 10px 12px;
+      resize: vertical;
+      line-height: 1.6;
+    }
+
+    /* テキストエリアは行全体 */
+    .form-row.full-width {
+      flex-direction: column;
+      gap: 10px;
+    }
+
+    .form-row.full-width .form-row-control {
+      width: 100%;
+    }
+
+    /* ===== トグルスイッチ ===== */
+    .toggle {
+      position: relative;
+      width: 44px;
+      height: 24px;
+      flex-shrink: 0;
+    }
+
+    .toggle input { opacity: 0; width: 0; height: 0; position: absolute; }
+
+    .toggle-track {
+      position: absolute;
+      inset: 0;
+      background: var(--surface-hover);
+      border: 1px solid var(--border);
+      border-radius: 24px;
+      cursor: pointer;
+      transition: background 0.2s, border-color 0.2s;
+    }
+
+    .toggle-track::after {
+      content: "";
+      position: absolute;
+      left: 3px;
+      top: 3px;
+      width: 16px;
+      height: 16px;
+      background: var(--fg-muted);
+      border-radius: 50%;
+      transition: transform 0.2s, background 0.2s;
+    }
+
+    .toggle input:checked + .toggle-track {
+      background: var(--green-hl);
+      border-color: var(--green-hl);
+    }
+
+    .toggle input:checked + .toggle-track::after {
+      transform: translateX(20px);
+      background: #fff;
+    }
+
+    .toggle-label {
+      font-size: 12px;
+      color: var(--fg-muted);
+      min-width: 28px;
+    }
+
+    /* ===== ボタン ===== */
+    .btn {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      padding: 6px 14px;
+      border-radius: var(--radius);
+      font-size: 13px;
+      font-weight: 500;
+      cursor: pointer;
+      transition: background 0.15s, border-color 0.15s;
+      white-space: nowrap;
+    }
+
+    .btn-primary {
+      background: var(--green-hl);
+      color: #fff;
+      border: 1px solid rgba(240,246,252,0.1);
+    }
+    .btn-primary:hover { background: #2ea043; }
+
+    .btn-secondary {
+      background: var(--btn-bg);
+      color: var(--fg);
+      border: 1px solid var(--btn-border);
+    }
+    .btn-secondary:hover { background: var(--surface-hover); }
+
+    .btn-danger {
+      background: transparent;
+      color: var(--red);
+      border: 1px solid var(--red);
+    }
+    .btn-danger:hover { background: rgba(248,81,73,0.1); }
+
+    /* ===== ステータスバー（固定フッター） ===== */
+    .save-bar {
+      position: fixed;
+      bottom: 0;
+      left: 0;
+      right: 0;
+      background: var(--surface);
+      border-top: 1px solid var(--border);
+      padding: 12px 24px;
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      z-index: 100;
+    }
+
+    .save-bar-inner {
+      max-width: 800px;
+      margin: 0 auto;
+      width: 100%;
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+
+    #status {
+      font-size: 12px;
+      color: var(--green);
+      display: flex;
+      align-items: center;
+      gap: 5px;
+      opacity: 0;
+      transition: opacity 0.3s;
+    }
+    #status.visible { opacity: 1; }
+
+    /* ===== Danger Zone ===== */
+    .danger-zone {
+      border-color: var(--red-hl);
+    }
+
+    .danger-zone .section-header {
+      border-bottom-color: var(--red-hl);
+    }
+
+    .danger-zone .section-header h2 {
+      color: var(--red);
+    }
+
+    /* ===== コマンドリファレンス (details) ===== */
+    details {
+      margin-top: 10px;
+    }
+
+    summary {
+      cursor: pointer;
+      font-size: 12px;
+      color: var(--accent);
+      user-select: none;
+      list-style: none;
+      display: flex;
+      align-items: center;
+      gap: 4px;
+    }
+
+    summary::before {
+      content: "▶";
+      font-size: 9px;
+      transition: transform 0.15s;
+    }
+
+    details[open] summary::before { transform: rotate(90deg); }
+
+    .cmd-table {
+      width: 100%;
+      border-collapse: collapse;
+      margin-top: 10px;
+      font-size: 12px;
+    }
+
+    .cmd-table th {
+      text-align: left;
+      padding: 5px 10px;
+      background: var(--surface-2);
+      color: var(--fg-muted);
+      border: 1px solid var(--border);
+      font-weight: 500;
+    }
+
+    .cmd-table td {
+      padding: 4px 10px;
+      border: 1px solid var(--border-muted);
+      color: var(--fg-muted);
+    }
+
+    .cmd-table td:first-child {
+      font-family: "SFMono-Regular", Consolas, monospace;
+      color: var(--accent);
+      width: 180px;
+    }
+
+    /* ===== 検証エラー ===== */
+    .field-error {
+      font-size: 11px;
+      color: var(--red);
+      margin-top: 4px;
+    }
+
+    input.invalid, textarea.invalid {
+      border-color: var(--red);
+      box-shadow: 0 0 0 3px rgba(248,81,73,0.2);
+    }
+
+    /* ===== コードヒント ===== */
+    code {
+      font-family: "SFMono-Regular", Consolas, monospace;
+      font-size: 11px;
+      background: var(--surface-2);
+      border: 1px solid var(--border);
+      padding: 1px 5px;
+      border-radius: 4px;
+      color: var(--orange);
+    }
+  </style>
+</head>
+<body>
+
+<div class="page">
+
+  <!-- ヘッダー -->
+  <div class="page-header">
+    <div class="page-header-icon">⌨</div>
+    <div>
+      <h1>Vimium Homemade</h1>
+      <p>設定は chrome.storage.sync に保存されます</p>
+    </div>
+  </div>
+
+  <!-- ===== スクロール ===== -->
+  <div class="section">
+    <div class="section-header">
+      <span class="section-header-icon">↕</span>
+      <div>
+        <h2>スクロール</h2>
+        <p>スクロール動作の速度と挙動</p>
+      </div>
+    </div>
+    <div class="section-body">
+
+      <div class="form-row">
+        <div class="form-row-label">
+          <label for="scroll-step">スクロールステップ</label>
+          <div class="desc"><code>j</code> / <code>k</code> / <code>h</code> / <code>l</code> 1回あたりの移動量</div>
+        </div>
+        <div class="form-row-control">
+          <div class="slider-wrap">
+            <input type="range" id="scroll-step" min="20" max="300" step="5">
+            <span class="range-badge" id="scroll-step-val">60 px</span>
+          </div>
+        </div>
+      </div>
+
+      <div class="form-row">
+        <div class="form-row-label">
+          <label>半ページスクロール比率</label>
+          <div class="desc"><code>d</code> / <code>u</code> のスクロール量（ビューポート高さの割合）</div>
+        </div>
+        <div class="form-row-control">
+          <div class="slider-wrap">
+            <input type="range" id="half-page-ratio" min="10" max="90" step="5">
+            <span class="range-badge" id="half-page-ratio-val">45 %</span>
+          </div>
+        </div>
+      </div>
+
+      <div class="form-row">
+        <div class="form-row-label">
+          <label>スムーススクロール</label>
+          <div class="desc">OFFにすると即時スクロール（低負荷・低スペック端末向け）</div>
+        </div>
+        <div class="form-row-control">
+          <span class="toggle-label" id="smooth-scroll-label">ON</span>
+          <label class="toggle">
+            <input type="checkbox" id="smooth-scroll">
+            <span class="toggle-track"></span>
+          </label>
+        </div>
+      </div>
+
+    </div>
+  </div>
+
+  <!-- ===== キーリピート ===== -->
+  <div class="section">
+    <div class="section-header">
+      <span class="section-header-icon">⏱</span>
+      <div>
+        <h2>キーリピート</h2>
+        <p>長押しスクロール開始までの時間と連打間隔</p>
+      </div>
+    </div>
+    <div class="section-body">
+
+      <div class="form-row">
+        <div class="form-row-label">
+          <label for="repeat-delay">初期遅延</label>
+          <div class="desc">キーを押してからリピートが始まるまでの時間</div>
+        </div>
+        <div class="form-row-control">
+          <div class="slider-wrap">
+            <input type="range" id="repeat-delay" min="50" max="800" step="10">
+            <span class="range-badge" id="repeat-delay-val">150 ms</span>
+          </div>
+        </div>
+      </div>
+
+      <div class="form-row">
+        <div class="form-row-label">
+          <label for="repeat-interval">リピート間隔</label>
+          <div class="desc">リピート中の各スクロール間隔（短いほど速い）</div>
+        </div>
+        <div class="form-row-control">
+          <div class="slider-wrap">
+            <input type="range" id="repeat-interval" min="10" max="200" step="5">
+            <span class="range-badge" id="repeat-interval-val">40 ms</span>
+          </div>
+        </div>
+      </div>
+
+    </div>
+  </div>
+
+  <!-- ===== リンクヒント ===== -->
+  <div class="section">
+    <div class="section-header">
+      <span class="section-header-icon">🔗</span>
+      <div>
+        <h2>リンクヒント</h2>
+        <p><code>f</code> / <code>F</code> で表示するヒントラベルの文字セット</p>
+      </div>
+    </div>
+    <div class="section-body">
+
+      <div class="form-row">
+        <div class="form-row-label">
+          <label for="hint-chars">ヒント文字セット</label>
+          <div class="desc">ホームポジション優先（重複不可、2文字以上）</div>
+        </div>
+        <div class="form-row-control" style="flex-direction:column;align-items:flex-end;gap:4px;">
+          <input type="text" id="hint-chars" maxlength="62" spellcheck="false" autocomplete="off">
+          <div class="field-error" id="hint-chars-error" style="display:none"></div>
+        </div>
+      </div>
+
+    </div>
+  </div>
+
+  <!-- ===== Vomnibar ===== -->
+  <div class="section">
+    <div class="section-header">
+      <span class="section-header-icon">🔍</span>
+      <div>
+        <h2>Vomnibar</h2>
+        <p><code>o</code> / <code>O</code> で開くコマンドパレットの設定</p>
+      </div>
+    </div>
+    <div class="section-body">
+
+      <div class="form-row">
+        <div class="form-row-label">
+          <label for="vomnibar-max">最大表示件数</label>
+          <div class="desc">補完候補として表示する最大アイテム数</div>
+        </div>
+        <div class="form-row-control">
+          <div class="slider-wrap">
+            <input type="range" id="vomnibar-max" min="5" max="60" step="5">
+            <span class="range-badge" id="vomnibar-max-val">30 件</span>
+          </div>
+        </div>
+      </div>
+
+      <div class="form-row">
+        <div class="form-row-label">
+          <label>閲覧履歴を含める</label>
+          <div class="desc">検索対象にブラウザの閲覧履歴を含める</div>
+        </div>
+        <div class="form-row-control">
+          <span class="toggle-label" id="vomnibar-history-label">ON</span>
+          <label class="toggle">
+            <input type="checkbox" id="vomnibar-history">
+            <span class="toggle-track"></span>
+          </label>
+        </div>
+      </div>
+
+      <div class="form-row">
+        <div class="form-row-label">
+          <label>ブックマークを含める</label>
+          <div class="desc">検索対象にブックマークを含める</div>
+        </div>
+        <div class="form-row-control">
+          <span class="toggle-label" id="vomnibar-bookmarks-label">ON</span>
+          <label class="toggle">
+            <input type="checkbox" id="vomnibar-bookmarks">
+            <span class="toggle-track"></span>
+          </label>
+        </div>
+      </div>
+
+    </div>
+  </div>
+
+  <!-- ===== HUD ===== -->
+  <div class="section">
+    <div class="section-header">
+      <span class="section-header-icon">💬</span>
+      <div>
+        <h2>HUD</h2>
+        <p>画面左下に表示されるステータス表示の設定</p>
+      </div>
+    </div>
+    <div class="section-body">
+
+      <div class="form-row">
+        <div class="form-row-label">
+          <label for="hud-timeout">表示時間</label>
+          <div class="desc">モード変更などのメッセージが消えるまでの時間</div>
+        </div>
+        <div class="form-row-control">
+          <div class="slider-wrap">
+            <input type="range" id="hud-timeout" min="300" max="5000" step="100">
+            <span class="range-badge" id="hud-timeout-val">1500 ms</span>
+          </div>
+        </div>
+      </div>
+
+    </div>
+  </div>
+
+  <!-- ===== キーバインド ===== -->
+  <div class="section">
+    <div class="section-header">
+      <span class="section-header-icon">⌨</span>
+      <div>
+        <h2>キーバインドのカスタマイズ</h2>
+        <p><code>map</code> / <code>unmap</code> / <code>unmapAll</code> 構文で上書き</p>
+      </div>
+    </div>
+    <div class="section-body">
+      <div class="form-row full-width">
+        <div class="form-row-label">
+          <div class="desc">
+            例: <code>map J tabPrev</code> &nbsp;|&nbsp; <code>unmap r</code> &nbsp;|&nbsp; <code>unmapAll</code>（#コメント行可）
+          </div>
+        </div>
+        <div class="form-row-control">
+          <textarea id="key-mappings" rows="6" placeholder="# 例&#10;map J tabPrev&#10;map K tabNext&#10;unmap r"></textarea>
+        </div>
+      </div>
+
+      <div class="form-row full-width" style="padding-top:0;border-top:none;">
+        <details>
+          <summary>利用可能なコマンド一覧を表示</summary>
+          <table class="cmd-table">
+            <thead><tr><th>コマンド名</th><th>説明</th></tr></thead>
+            <tbody>
+              <tr><td>scrollDown</td><td>下スクロール</td></tr>
+              <tr><td>scrollUp</td><td>上スクロール</td></tr>
+              <tr><td>scrollLeft</td><td>左スクロール</td></tr>
+              <tr><td>scrollRight</td><td>右スクロール</td></tr>
+              <tr><td>scrollPageDown</td><td>半ページ下スクロール</td></tr>
+              <tr><td>scrollPageUp</td><td>半ページ上スクロール</td></tr>
+              <tr><td>scrollToTop</td><td>ページ最上部へ</td></tr>
+              <tr><td>scrollToBottom</td><td>ページ最下部へ</td></tr>
+              <tr><td>reload</td><td>ページリロード</td></tr>
+              <tr><td>goBack</td><td>ブラウザ「戻る」</td></tr>
+              <tr><td>goForward</td><td>ブラウザ「進む」</td></tr>
+              <tr><td>tabPrev</td><td>左のタブへ</td></tr>
+              <tr><td>tabNext</td><td>右のタブへ</td></tr>
+              <tr><td>newTab</td><td>新規タブ作成</td></tr>
+              <tr><td>closeTab</td><td>タブを閉じる</td></tr>
+              <tr><td>restoreTab</td><td>閉じたタブを復元</td></tr>
+              <tr><td>hintOpen</td><td>リンクヒント（現在タブ）</td></tr>
+              <tr><td>hintTab</td><td>リンクヒント（新規タブ）</td></tr>
+              <tr><td>hintYank</td><td>リンクURLをコピー</td></tr>
+              <tr><td>vomnibarOpen</td><td>Vomnibar（現在タブ）</td></tr>
+              <tr><td>vomnibarTab</td><td>Vomnibar（新規タブ）</td></tr>
+              <tr><td>findMode</td><td>Find Mode 開始</td></tr>
+              <tr><td>findNext</td><td>次の一致へ</td></tr>
+              <tr><td>findPrev</td><td>前の一致へ</td></tr>
+              <tr><td>insertMode</td><td>Insert Mode</td></tr>
+              <tr><td>showHelp</td><td>ヘルプ表示</td></tr>
+              <tr><td>goUpUrl</td><td>URL階層を1段上へ</td></tr>
+              <tr><td>goRootUrl</td><td>URLをルートへ</td></tr>
+              <tr><td>focusInput</td><td>テキスト入力にフォーカス</td></tr>
+            </tbody>
+          </table>
+        </details>
+      </div>
+    </div>
+  </div>
+
+  <!-- ===== 除外サイト ===== -->
+  <div class="section">
+    <div class="section-header">
+      <span class="section-header-icon">🚫</span>
+      <div>
+        <h2>除外サイト</h2>
+        <p>Vimium を無効にするサイトのホスト名（1行1件、<code>*</code> ワイルドカード可）</p>
+      </div>
+    </div>
+    <div class="section-body">
+      <div class="form-row full-width">
+        <div class="form-row-control">
+          <textarea id="excluded-sites" rows="4"
+            placeholder="例:&#10;mail.google.com&#10;*.notion.so&#10;app.slack.com"></textarea>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ===== Danger Zone ===== -->
+  <div class="section danger-zone">
+    <div class="section-header">
+      <span class="section-header-icon" style="color:var(--red)">⚠</span>
+      <div>
+        <h2>Danger Zone</h2>
+        <p>すべての設定をデフォルト値にリセットします</p>
+      </div>
+    </div>
+    <div class="section-body">
+      <div class="form-row">
+        <div class="form-row-label">
+          <label>設定をリセット</label>
+          <div class="desc">この操作は取り消せません。すべてのカスタマイズが失われます。</div>
+        </div>
+        <div class="form-row-control">
+          <button class="btn btn-danger" id="btn-reset">デフォルトに戻す</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+</div><!-- /page -->
+
+<!-- 固定フッター：保存ボタン -->
+<div class="save-bar">
+  <div class="save-bar-inner">
+    <button class="btn btn-primary" id="btn-save">変更を保存</button>
+    <button class="btn btn-secondary" id="btn-discard">変更を破棄</button>
+    <span id="status">✓ 保存しました</span>
+  </div>
+</div>
+
+<script src="options.js"></script>
+</body>
+</html>
