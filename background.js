@@ -86,5 +86,34 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
       });
       return true;
     }
+    case "TAB_FIRST": {
+      chrome.tabs.query({ currentWindow: true }, (tabs) => {
+        const sorted = tabs.sort((a, b) => a.index - b.index);
+        if (sorted[0]) chrome.tabs.update(sorted[0].id, { active: true });
+      });
+      break;
+    }
+    case "TAB_LAST": {
+      chrome.tabs.query({ currentWindow: true }, (tabs) => {
+        const sorted = tabs.sort((a, b) => a.index - b.index);
+        const last = sorted[sorted.length - 1];
+        if (last) chrome.tabs.update(last.id, { active: true });
+      });
+      break;
+    }
+    case "TAB_MOVE": {
+      chrome.tabs.query({ active: true, currentWindow: true }, (tabs) => {
+        if (!tabs[0]) return;
+        chrome.tabs.query({ currentWindow: true }, (allTabs) => {
+          const newIndex = Math.max(0, Math.min(allTabs.length - 1, tabs[0].index + message.delta));
+          chrome.tabs.move(tabs[0].id, { index: newIndex });
+        });
+      });
+      break;
+    }
+    case "TAB_WINDOW": {
+      if (sender.tab) chrome.windows.create({ tabId: sender.tab.id });
+      break;
+    }
   }
 });

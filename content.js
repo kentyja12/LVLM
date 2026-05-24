@@ -3,6 +3,9 @@
 (() => {
   "use strict";
 
+  // サンドボックス iframe や無効化されたコンテキストでは chrome.runtime が存在しないため即終了
+  if (typeof chrome === "undefined" || !chrome.runtime?.id) return;
+
   // ===== デフォルト設定 =====
   const DEFAULT_SETTINGS = {
     // スクロール
@@ -42,6 +45,7 @@
 
   // Vomnibar
   let vomnibarNewTab = false;
+  let vomnibarTabMode = false; // true = タブ切り替えモード (T キー)
   let vomnibarItems = [];
   let vomnibarSelected = 0;
   let vomnibarDebounceTimer = null;
@@ -49,6 +53,7 @@
   // ===== スクロールコマンド定義（repeat判定用）=====
   const SCROLL_COMMANDS = new Set([
     "scrollDown", "scrollUp", "scrollLeft", "scrollRight", "scrollPageDown", "scrollPageUp",
+    "scrollFullLeft", "scrollFullRight",
   ]);
 
   // ===== Vimium スクローラー =====
@@ -112,6 +117,30 @@
       return null;
     }
     return search(document.body || scrollingEl) || scrollingEl;
+  }
+
+  // 先祖の overflow コンテナを考慮した実際の可視矩形を返す。完全に隠れている場合は null
+  function getEffectiveVisibleRect(el) {
+    const r = el.getBoundingClientRect();
+    let left = Math.max(r.left, 0), top = Math.max(r.top, 0);
+    let right = Math.min(r.right, window.innerWidth), bottom = Math.min(r.bottom, window.innerHeight);
+    if (left >= right || top >= bottom) return null;
+
+    let node = el.parentElement;
+    while (node && node !== document.documentElement) {
+      const s = window.getComputedStyle(node);
+      const ox = s.overflowX, oy = s.overflowY;
+      const clipsX = /hidden|clip|auto|scroll/.test(ox);
+      const clipsY = /hidden|clip|auto|scroll/.test(oy);
+      if (clipsX || clipsY) {
+        const nr = node.getBoundingClientRect();
+        if (clipsX) { left = Math.max(left, nr.left); right  = Math.min(right,  nr.right); }
+        if (clipsY) { top  = Math.max(top,  nr.top);  bottom = Math.min(bottom, nr.bottom); }
+        if (left >= right || top >= bottom) return null;
+      }
+      node = node.parentElement;
+    }
+    return { left, top, right, bottom, width: right - left, height: bottom - top };
   }
 
   // 最後にクリック/DOMActivate された要素を追跡（findScrollableElement の起点）
@@ -305,34 +334,70 @@
     scrollRight:      (n) => doScroll(settings.scrollStep, 0, n),
     scrollPageDown:   (n) => doScroll(0, window.innerHeight * settings.halfPageRatio, n),
     scrollPageUp:     (n) => doScroll(0, -window.innerHeight * settings.halfPageRatio, n),
-    scrollToTop:      () => scrollToTop(),
-    scrollToBottom:   () => scrollToBottom(),
-    reload:           () => window.location.reload(),
-    goBack:           (n) => history.go(-n),
-    goForward:        (n) => history.go(n),
-    tabPrev:          () => chrome.runtime.sendMessage({ type: "TAB_PREV" }),
-    tabNext:          () => chrome.runtime.sendMessage({ type: "TAB_NEXT" }),
-    newTab:           () => chrome.runtime.sendMessage({ type: "TAB_NEW" }),
-    closeTab:         () => chrome.runtime.sendMessage({ type: "TAB_CLOSE" }),
-    restoreTab:       () => chrome.runtime.sendMessage({ type: "TAB_RESTORE" }),
-    hintOpen:         () => enterHintMode("open"),
-    hintTab:          () => enterHintMode("tab"),
-    hintYank:         () => enterHintMode("yank"),
-    vomnibarOpen:     () => enterVomnibar(false),
-    vomnibarTab:      () => enterVomnibar(true),
-    findMode:         () => enterFindMode(),
-    findNext:         () => findNext(1),
-    findPrev:         () => findNext(-1),
-    insertMode:       () => { setMode("insert"); showHud("-- INSERT --", 0); },
-    showHelp:         () => enterHelp(),
-    goUpUrl:          () => navigateUpUrl(),
-    goRootUrl:        () => navigateRootUrl(),
-    focusInput:       () => focusFirstInput(),
+    scrollToTop:         () => scrollToTop(),
+    scrollToBottom:      () => scrollToBottom(),
+    scrollFullLeft:      () => {
+      if (!activatedElement) activatedElement = firstScrollableElement() || getScrollingElement();
+      findScrollableElement(activatedElement, "x", -1)
+        .scrollTo({ left: 0, behavior: settings.smoothScroll ? "smooth" : "instant" });
+    },
+    scrollFullRight:     () => {
+      if (!activatedElement) activatedElement = firstScrollableElement() || getScrollingElement();
+      const el = findScrollableElement(activatedElement, "x", 1);
+      el.scrollTo({ left: el.scrollWidth, behavior: settings.smoothScroll ? "smooth" : "instant" });
+    },
+    reload:              () => window.location.reload(),
+    goBack:              (n) => history.go(-n),
+    goForward:           (n) => history.go(n),
+    tabPrev:             () => chrome.runtime.sendMessage({ type: "TAB_PREV" }),
+    tabNext:             () => chrome.runtime.sendMessage({ type: "TAB_NEXT" }),
+    tabFirst:            () => chrome.runtime.sendMessage({ type: "TAB_FIRST" }),
+    tabLast:             () => chrome.runtime.sendMessage({ type: "TAB_LAST" }),
+    tabMoveLeft:         () => chrome.runtime.sendMessage({ type: "TAB_MOVE", delta: -1 }),
+    tabMoveRight:        () => chrome.runtime.sendMessage({ type: "TAB_MOVE", delta:  1 }),
+    newTab:              () => chrome.runtime.sendMessage({ type: "TAB_NEW" }),
+    closeTab:            () => chrome.runtime.sendMessage({ type: "TAB_CLOSE" }),
+    restoreTab:          () => chrome.runtime.sendMessage({ type: "TAB_RESTORE" }),
+    moveTabToWindow:     () => chrome.runtime.sendMessage({ type: "TAB_WINDOW" }),
+    hintOpen:            () => enterHintMode("open"),
+    hintTab:             () => enterHintMode("tab"),
+    hintYank:            () => enterHintMode("yank"),
+    vomnibarOpen:        () => enterVomnibar(false),
+    vomnibarTab:         () => enterVomnibar(true),
+    switchTab:           () => enterVomnibar(false, true),
+    findMode:            () => enterFindMode(),
+    findNext:            () => findNext(1),
+    findPrev:            () => findNext(-1),
+    insertMode:          () => { setMode("insert"); showHud("-- INSERT --", 0); },
+    showHelp:            () => enterHelp(),
+    goUpUrl:             () => navigateUpUrl(),
+    goRootUrl:           () => navigateRootUrl(),
+    focusInput:          () => focusFirstInput(),
+    yankUrl:             () => navigator.clipboard.writeText(window.location.href)
+                                 .then(() => showHud(`Copied: ${window.location.href}`)),
+    openClipboard:       () => navigator.clipboard.readText().then((text) => {
+      if (!text) return;
+      window.location.href = /^https?:\/\//.test(text)
+        ? text : `https://www.google.com/search?q=${encodeURIComponent(text)}`;
+    }),
+    openClipboardNewTab: () => navigator.clipboard.readText().then((text) => {
+      if (!text) return;
+      const url = /^https?:\/\//.test(text)
+        ? text : `https://www.google.com/search?q=${encodeURIComponent(text)}`;
+      chrome.runtime.sendMessage({ type: "TAB_NEW", url });
+    }),
+    viewSource:          () => chrome.runtime.sendMessage({
+      type: "TAB_NEW", url: `view-source:${window.location.href}`,
+    }),
+    yankContainingBlock: () => yankContainingBlock(),
+    visualMode:          () => enterVisualMode("char"),
+    visualLineMode:      () => enterVisualMode("line"),
   };
 
   // ===== デフォルトキーマップ =====
   // キー文字列 → コマンド名
   const DEFAULT_KEY_MAP = {
+    // スクロール
     "j": "scrollDown",
     "k": "scrollUp",
     "h": "scrollLeft",
@@ -340,31 +405,54 @@
     "d": "scrollPageDown",
     "u": "scrollPageUp",
     "G": "scrollToBottom",
+    // ナビゲーション
     "r": "reload",
     "H": "goBack",
     "L": "goForward",
+    // タブ操作
     "J": "tabPrev",
     "K": "tabNext",
     "t": "newTab",
     "x": "closeTab",
     "X": "restoreTab",
+    "W": "moveTabToWindow",
+    "T": "switchTab",
+    // リンクヒント
     "f": "hintOpen",
     "F": "hintTab",
+    // Vomnibar
     "o": "vomnibarOpen",
     "O": "vomnibarTab",
+    // 検索
     "/": "findMode",
     "n": "findNext",
     "N": "findPrev",
+    // モード
     "i": "insertMode",
     "?": "showHelp",
+    // クリップボード
+    "p": "openClipboard",
+    "P": "openClipboardNewTab",
     // 2ストロークキー
     "gg": "scrollToTop",
     "gu": "goUpUrl",
     "gU": "goRootUrl",
     "gi": "focusInput",
+    "gs": "viewSource",
     "gt": "tabNext",
     "gT": "tabPrev",
+    "g0": "tabFirst",
+    "g$": "tabLast",
+    "yy": "yankUrl",
+    "yc": "yankContainingBlock",
     "yf": "hintYank",
+    // ビジュアルモード
+    "v":  "visualMode",
+    "V":  "visualLineMode",
+    "<<": "tabMoveLeft",
+    ">>": "tabMoveRight",
+    "zH": "scrollFullLeft",
+    "zL": "scrollFullRight",
   };
 
   let keyMap = { ...DEFAULT_KEY_MAP };
@@ -443,12 +531,11 @@
 
     return [...document.querySelectorAll(selector)].filter((el) => {
       if (!el.isConnected) return false;
-      const rect = el.getBoundingClientRect();
-      if (rect.width === 0 || rect.height === 0) return false;
-      if (rect.bottom < 0 || rect.top > window.innerHeight) return false;
-      if (rect.right < 0 || rect.left > window.innerWidth) return false;
       const style = window.getComputedStyle(el);
-      return style.visibility !== "hidden" && style.display !== "none" && style.opacity !== "0";
+      if (style.visibility === "hidden" || style.display === "none" || style.opacity === "0") return false;
+      // 先祖のクリッピング領域と交差した実可視矩形で判定（カルーセル等の画面外要素を除外）
+      const rect = getEffectiveVisibleRect(el);
+      return rect !== null && rect.width >= 4 && rect.height >= 4;
     });
   }
 
@@ -462,13 +549,13 @@
     hintOverlay.className = "vimium-hint-overlay";
 
     hintElements.forEach((el, i) => {
-      const rect = el.getBoundingClientRect();
+      const rect = getEffectiveVisibleRect(el) || el.getBoundingClientRect();
       const hint = document.createElement("div");
       hint.className = "vimium-hint";
       hint.dataset.label = labels[i];
       hint.textContent = labels[i].toUpperCase();
       hint.style.left = `${Math.max(0, rect.left)}px`;
-      hint.style.top = `${Math.max(0, rect.top - 18)}px`;
+      hint.style.top  = `${Math.max(0, rect.top - 18)}px`;
       hintOverlay.appendChild(hint);
     });
 
@@ -636,11 +723,14 @@
   }
 
   // ===== Vomnibar =====
-  function enterVomnibar(newTab) {
+  function enterVomnibar(newTab, tabMode = false) {
     vomnibarNewTab = newTab;
+    vomnibarTabMode = tabMode;
     setMode("vomnibar");
     vomnibarBackdrop.classList.add("visible");
     vomnibarBox.classList.add("visible");
+    const label = vomnibarBox.querySelector("label");
+    if (label) label.textContent = tabMode ? "Tab:" : (newTab ? "Open (new tab):" : "Open:");
     vomnibarInput.value = "";
     vomnibarInput.focus();
     vomnibarSelected = 0;
@@ -655,6 +745,22 @@
   }
 
   function loadVomnibarItems(query) {
+    // タブ切り替えモード: 開いているタブを検索・表示
+    if (vomnibarTabMode) {
+      chrome.runtime.sendMessage({ type: "GET_TABS" }, (tabs) => {
+        if (!tabs) { vomnibarItems = []; renderVomnibarList(); return; }
+        const q = query.toLowerCase();
+        const filtered = q
+          ? tabs.filter((t) =>
+              (t.title || "").toLowerCase().includes(q) || (t.url || "").toLowerCase().includes(q))
+          : tabs;
+        vomnibarItems = filtered.slice(0, settings.vomnibarMaxResults)
+          .map((t) => ({ ...t, _isTab: true }));
+        renderVomnibarList();
+      });
+      return;
+    }
+    // 通常モード: 履歴・ブックマーク
     const results = [];
     let pending = (settings.vomnibarIncludeHistory ? 1 : 0) + (settings.vomnibarIncludeBookmarks ? 1 : 0);
     if (pending === 0) { vomnibarItems = []; renderVomnibarList(); return; }
@@ -688,6 +794,12 @@
   }
 
   function openVomnibarItem(item) {
+    // タブ切り替えモード
+    if (item?._isTab) {
+      exitVomnibar();
+      chrome.runtime.sendMessage({ type: "SWITCH_TAB", tabId: item.id });
+      return;
+    }
     const raw = item?.url || vomnibarInput.value;
     if (!raw) return;
     const url = raw.startsWith("http") ? raw : `https://www.google.com/search?q=${encodeURIComponent(raw)}`;
@@ -819,6 +931,109 @@
     clearTimeout(keyBufferTimer);
   }
 
+  // ===== Visual Mode =====
+
+  // yc コマンド用: semantic block を検索する（div/body/html は対象外）
+  const BLOCK_TAGS = new Set([
+    "p", "li", "td", "th", "blockquote", "pre",
+    "h1", "h2", "h3", "h4", "h5", "h6", "dt", "dd", "figcaption", "summary",
+  ]);
+
+  function findBlockAncestor(node) {
+    let el = node.nodeType === Node.TEXT_NODE ? node.parentElement : node;
+    while (el && !BLOCK_TAGS.has(el.tagName?.toLowerCase())) {
+      el = el.parentElement;
+    }
+    return el; // div / body / html 等の場合は null
+  }
+
+  // submode: "char" | "line"
+  // initialRange: Selection の初期 Range（省略時は現在の find match を使用）
+  function enterVisualMode(submode, initialRange = null) {
+    const sel = window.getSelection();
+    const range = initialRange
+      || (findMatches.length > 0 && findIndex >= 0 ? findMatches[findIndex] : null);
+
+    if (range) {
+      sel.removeAllRanges();
+      sel.addRange(range.cloneRange());
+    }
+
+    if (submode === "line") {
+      if (sel.rangeCount) {
+        // カーソル行全体を選択
+        sel.modify("move",   "backward", "lineboundary");
+        sel.modify("extend", "forward",  "lineboundary");
+      }
+      setMode("visualLine");
+      showHud("-- VISUAL LINE -- (y: copy, v: char mode, Esc: cancel)", 0);
+    } else {
+      setMode("visual");
+      showHud("-- VISUAL -- (y: copy, V: line mode, Esc: cancel)", 0);
+    }
+  }
+
+  // yc: / 検索後に押すと、マッチを含む semantic block をコピー
+  //     div の場合はビジュアルモードへ移行
+  function yankContainingBlock() {
+    if (findMatches.length === 0 || findIndex < 0) {
+      showHud("先に / で検索してください");
+      return;
+    }
+    const range  = findMatches[findIndex];
+    const block  = findBlockAncestor(range.startContainer);
+
+    if (block) {
+      const text = (block.innerText || block.textContent || "").trim();
+      navigator.clipboard.writeText(text).then(() =>
+        showHud(`Copied (${text.length}): "${text.slice(0, 40)}${text.length > 40 ? "…" : ""}"`)
+      );
+    } else {
+      // div 等: マッチ箇所を選択した状態でビジュアルモードへ
+      enterVisualMode("char", range);
+    }
+  }
+
+  // ビジュアルモードのキーハンドラ
+  // Selection.modify() で選択を拡張: h/l(char), w/b(word), j/k(line), $/$0(lineboundary)
+  function handleVisualKey(key) {
+    const sel    = window.getSelection();
+    const isLine = mode === "visualLine";
+
+    switch (key) {
+      case "h": sel.modify("extend", "backward", "character");      break;
+      case "l": sel.modify("extend", "forward",  "character");      break;
+      case "b": sel.modify("extend", "backward", "word");           break;
+      case "w": sel.modify("extend", "forward",  "word");           break;
+      case "k": sel.modify("extend", "backward", "line");           break;
+      case "j": sel.modify("extend", "forward",  "line");           break;
+      case "0": sel.modify("extend", "backward", "lineboundary");   break;
+      case "$": sel.modify("extend", "forward",  "lineboundary");   break;
+      case "G": sel.modify("extend", "forward",  "documentboundary"); break;
+      // v/V でサブモード切替
+      case "v":
+        if (isLine) { setMode("visual");     showHud("-- VISUAL -- (y: copy, V: line mode, Esc: cancel)", 0); }
+        else        { setMode("visualLine"); showHud("-- VISUAL LINE -- (y: copy, v: char mode, Esc: cancel)", 0); }
+        break;
+      case "V":
+        if (!isLine) { setMode("visualLine"); showHud("-- VISUAL LINE -- (y: copy, v: char mode, Esc: cancel)", 0); }
+        break;
+      case "y": {
+        const text = sel.toString();
+        sel.removeAllRanges();
+        setMode("normal");
+        if (text) navigator.clipboard.writeText(text).then(() =>
+          showHud(`Copied (${text.length}): "${text.slice(0, 40)}${text.length > 40 ? "…" : ""}"`)
+        );
+        break;
+      }
+      case "Escape":
+        sel.removeAllRanges();
+        setMode("normal");
+        break;
+    }
+  }
+
   // ===== キー処理：Hint Mode =====
   function handleHintKey(key) {
     if (key === "Escape") { exitHintMode(); return; }
@@ -883,6 +1098,11 @@
         return;
       case "help":
         if (key === "Escape" || key === "?" || key === "q") exitHelp();
+        return;
+      case "visual":
+      case "visualLine":
+        event.preventDefault();
+        handleVisualKey(key);
         return;
       default: {
         // テキスト入力中（input/textarea/select/contenteditable）のみブロック
