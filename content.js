@@ -50,11 +50,6 @@
   let vomnibarSelected = 0;
   let vomnibarDebounceTimer = null;
 
-  // Video Auto-Advance (動画終了後に次へ自動スクロール)
-  let videoAutoAdvanceEnabled = false;
-  let videoListeners = []; // { el, fn } pairs for cleanup
-  let lastAutoAdvanceTime = 0;
-
   // ===== スクロールコマンド定義（repeat判定用）=====
   const SCROLL_COMMANDS = new Set([
     "scrollDown", "scrollUp", "scrollLeft", "scrollRight", "scrollPageDown", "scrollPageUp",
@@ -86,17 +81,16 @@
     return performScroll(el, direction, delta) && performScroll(el, direction, -delta);
   }
 
-  // CSS を先に確認して大半の要素を DOM テスト前に除外する（Amazon 等の深い DOM でのカクつき対策）
-  // overflow:visible（div のデフォルト）/ hidden / clip は確実にスクロール不可 → DOM テストをスキップ
-  // overflow:auto / scroll / overlay のみ実際の scrollBy テストを行う
-  function isScrollableElement(el, direction = "y", amount = 1) {
+  function shouldScroll(el, direction) {
     const style = window.getComputedStyle(el);
-    const overflow = style.getPropertyValue(`overflow-${direction}`);
-    if (overflow === "visible" || overflow === "hidden" || overflow === "clip") return false;
+    if (style.getPropertyValue(`overflow-${direction}`) === "hidden") return false;
     if (["hidden", "collapse"].includes(style.visibility)) return false;
     if (style.display === "none") return false;
-    // auto / scroll / overlay: Chrome bug #110149 対策として実際に 1px 動かして確認
-    return doesScroll(el, direction, amount);
+    return true;
+  }
+
+  function isScrollableElement(el, direction = "y", amount = 1) {
+    return doesScroll(el, direction, amount) && shouldScroll(el, direction);
   }
 
   // activatedElement から上へ辿り、実際にスクロールできる要素を返す
@@ -111,10 +105,10 @@
   // ページ初期化時: 最大面積の可視スクロール可能要素を探索する
   function firstScrollableElement() {
     const scrollingEl = getScrollingElement();
-    if (isScrollableElement(scrollingEl, "y", 1) || isScrollableElement(scrollingEl, "y", -1)) return scrollingEl;
+    if (doesScroll(scrollingEl, "y", 1) || doesScroll(scrollingEl, "y", -1)) return scrollingEl;
     function search(el) {
       if (!el) return null;
-      if (isScrollableElement(el, "y", 1) || isScrollableElement(el, "y", -1)) return el;
+      if (doesScroll(el, "y", 1) || doesScroll(el, "y", -1)) return el;
       const children = [...el.children]
         .map((c) => { const r = c.getBoundingClientRect(); return { el: c, area: r.width * r.height }; })
         .filter((c) => c.area > 0)
@@ -398,7 +392,6 @@
     yankContainingBlock: () => yankContainingBlock(),
     visualMode:          () => enterVisualMode("char"),
     visualLineMode:      () => enterVisualMode("line"),
-    toggleVideoAutoAdvance: () => toggleVideoAutoAdvance(),
   };
 
   // ===== デフォルトキーマップ =====
@@ -460,7 +453,6 @@
     ">>": "tabMoveRight",
     "zH": "scrollFullLeft",
     "zL": "scrollFullRight",
-    "zz": "toggleVideoAutoAdvance",
   };
 
   let keyMap = { ...DEFAULT_KEY_MAP };
@@ -540,8 +532,7 @@
     return [...document.querySelectorAll(selector)].filter((el) => {
       if (!el.isConnected) return false;
       const style = window.getComputedStyle(el);
-      if (style.visibility === "hidden" || style.display === "none") return false;
-      // opacity:0 は非表示に見えるが DOM 上では interactive（Netflix 等の player controls）→ 含める
+      if (style.visibility === "hidden" || style.display === "none" || style.opacity === "0") return false;
       // 先祖のクリッピング領域と交差した実可視矩形で判定（カルーセル等の画面外要素を除外）
       const rect = getEffectiveVisibleRect(el);
       return rect !== null && rect.width >= 4 && rect.height >= 4;
@@ -884,61 +875,6 @@
   }
 
   // ===== キー処理：Normal Mode =====
-  function claimEvent(event) {
-    event.preventDefault();
-    event.stopImmediatePropagation();
-  }
-
-  // ===== Video Auto-Advance (動画終了後に次へ自動スクロール) =====
-  const videoObserver = new MutationObserver((mutations) => {
-    if (!videoAutoAdvanceEnabled) return;
-    for (const m of mutations) {
-      for (const node of m.addedNodes) {
-        if (node.nodeType !== Node.ELEMENT_NODE) continue;
-        if (node.tagName === "VIDEO") attachVideoListener(node);
-        node.querySelectorAll?.("video").forEach(attachVideoListener);
-      }
-    }
-  });
-
-  function onVideoEnded() {
-    if (!videoAutoAdvanceEnabled) return;
-    const now = Date.now();
-    if (now - lastAutoAdvanceTime < 1500) return;
-    lastAutoAdvanceTime = now;
-    showHud("Auto-advance: 次の動画へ");
-    const scrollEl = firstScrollableElement() || getScrollingElement();
-    performScroll(scrollEl, "y", window.innerHeight);
-  }
-
-  function attachVideoListener(video) {
-    if (videoListeners.some((v) => v.el === video)) return; // 重複防止
-    const fn = () => onVideoEnded();
-    video.addEventListener("ended", fn);
-    videoListeners.push({ el: video, fn });
-  }
-
-  function enableVideoAutoAdvance() {
-    videoAutoAdvanceEnabled = true;
-    document.querySelectorAll("video").forEach(attachVideoListener);
-    videoObserver.observe(document.body, { childList: true, subtree: true });
-    showHud(`Auto-advance: ON (動画終了→次へスクロール)`, 0);
-  }
-
-  function disableVideoAutoAdvance() {
-    videoAutoAdvanceEnabled = false;
-    videoListeners.forEach(({ el, fn }) => el.removeEventListener("ended", fn));
-    videoListeners = [];
-    lastAutoAdvanceTime = 0;
-    videoObserver.disconnect();
-    showHud("Auto-advance: OFF");
-  }
-
-  function toggleVideoAutoAdvance() {
-    if (videoAutoAdvanceEnabled) disableVideoAutoAdvance();
-    else enableVideoAutoAdvance();
-  }
-
   function handleNormalKey(key, event) {
     // 数字カウントプレフィックス
     if (/^[1-9]$/.test(key) && keyBuffer === "") {
@@ -960,7 +896,7 @@
     if (prefix && keyMap[candidate2]) {
       clearTimeout(keyBufferTimer);
       keyBuffer = "";
-      claimEvent(event);
+      event.preventDefault();
       COMMAND_MAP[keyMap[candidate2]]?.(count);
       return;
     }
@@ -976,7 +912,8 @@
     // 2ストロークのプレフィックスになりうるか確認
     const isPrefix = Object.keys(keyMap).some((k) => k.length === 2 && k[0] === key);
     if (isPrefix) {
-      claimEvent(event);
+      // ページ側のショートカット（GitHub等）と競合しないよう抑制
+      event.preventDefault();
       keyBuffer = key;
       clearTimeout(keyBufferTimer);
       keyBufferTimer = setTimeout(() => { keyBuffer = ""; }, 1500);
@@ -986,7 +923,8 @@
     // 1ストロークコマンド
     const command = keyMap[key];
     if (command) {
-      claimEvent(event);
+      // ページ側のキーハンドラ（GitHub hotkey等）が defaultPrevented を確認する前に抑制する
+      event.preventDefault();
       COMMAND_MAP[command]?.(count);
     }
     keyBuffer = "";
@@ -1142,9 +1080,7 @@
   helpBackdrop.addEventListener("mousedown", () => exitHelp());
 
   // ===== メインキーハンドラ =====
-  window.addEventListener("keydown", (event) => {
-    // F5 は常にブラウザのリロードを許可（Vimium のモード状態に関わらず）
-    if (event.key === "F5") return;
+  document.addEventListener("keydown", (event) => {
     if (["Control", "Alt", "Shift", "Meta"].includes(event.key)) return;
     if (event.ctrlKey || event.altKey || event.metaKey) return;
 
@@ -1155,7 +1091,7 @@
         if (key === "Escape") { setMode("normal"); document.activeElement?.blur(); showHud("-- NORMAL --"); }
         return;
       case "hint":
-        claimEvent(event);
+        event.preventDefault();
         handleHintKey(key);
         return;
       case "find": case "vomnibar":
@@ -1165,7 +1101,7 @@
         return;
       case "visual":
       case "visualLine":
-        claimEvent(event);
+        event.preventDefault();
         handleVisualKey(key);
         return;
       default: {
@@ -1199,7 +1135,7 @@
     }
   }, true);
 
-  window.addEventListener("keyup", (event) => {
+  document.addEventListener("keyup", (event) => {
     CoreScroller.onKeyup(event);
   }, true);
 
