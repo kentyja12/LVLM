@@ -50,6 +50,11 @@
   let vomnibarSelected = 0;
   let vomnibarDebounceTimer = null;
 
+  // Video Auto-Advance (動画終了後に次の動画へ自動スクロール)
+  let videoAutoAdvanceEnabled = false;
+  let videoListeners = []; // { el, fn } pairs for cleanup
+  let lastAutoAdvanceTime = 0;
+
   // ===== スクロールコマンド定義（repeat判定用）=====
   const SCROLL_COMMANDS = new Set([
     "scrollDown", "scrollUp", "scrollLeft", "scrollRight", "scrollPageDown", "scrollPageUp",
@@ -326,6 +331,56 @@
     hideHud();
   }
 
+  // ===== Video Auto-Advance =====
+  const videoObserver = new MutationObserver((mutations) => {
+    if (!videoAutoAdvanceEnabled) return;
+    for (const m of mutations) {
+      for (const node of m.addedNodes) {
+        if (node.nodeType !== Node.ELEMENT_NODE) continue;
+        if (node.tagName === "VIDEO") attachVideoListener(node);
+        node.querySelectorAll?.("video").forEach(attachVideoListener);
+      }
+    }
+  });
+
+  function onVideoEnded() {
+    if (!videoAutoAdvanceEnabled) return;
+    const now = Date.now();
+    if (now - lastAutoAdvanceTime < 1500) return;
+    lastAutoAdvanceTime = now;
+    showHud("Auto-advance: 次の動画へ");
+    const scrollEl = firstScrollableElement() || getScrollingElement();
+    performScroll(scrollEl, "y", window.innerHeight);
+  }
+
+  function attachVideoListener(video) {
+    if (videoListeners.some((v) => v.el === video)) return;
+    const fn = () => onVideoEnded();
+    video.addEventListener("ended", fn);
+    videoListeners.push({ el: video, fn });
+  }
+
+  function enableVideoAutoAdvance() {
+    videoAutoAdvanceEnabled = true;
+    document.querySelectorAll("video").forEach(attachVideoListener);
+    videoObserver.observe(document.body, { childList: true, subtree: true });
+    showHud("Auto-advance: ON (動画終了→次へスクロール)", 0);
+  }
+
+  function disableVideoAutoAdvance() {
+    videoAutoAdvanceEnabled = false;
+    videoListeners.forEach(({ el, fn }) => el.removeEventListener("ended", fn));
+    videoListeners = [];
+    lastAutoAdvanceTime = 0;
+    videoObserver.disconnect();
+    showHud("Auto-advance: OFF");
+  }
+
+  function toggleVideoAutoAdvance() {
+    if (videoAutoAdvanceEnabled) disableVideoAutoAdvance();
+    else enableVideoAutoAdvance();
+  }
+
   // ===== コマンド定義 =====
   const COMMAND_MAP = {
     scrollDown:       (n) => doScroll(0, settings.scrollStep, n),
@@ -392,6 +447,7 @@
     yankContainingBlock: () => yankContainingBlock(),
     visualMode:          () => enterVisualMode("char"),
     visualLineMode:      () => enterVisualMode("line"),
+    toggleVideoAutoAdvance: () => toggleVideoAutoAdvance(),
   };
 
   // ===== デフォルトキーマップ =====
@@ -453,6 +509,7 @@
     ">>": "tabMoveRight",
     "zH": "scrollFullLeft",
     "zL": "scrollFullRight",
+    "zz": "toggleVideoAutoAdvance",
   };
 
   let keyMap = { ...DEFAULT_KEY_MAP };
@@ -874,6 +931,11 @@
     return false;
   }
 
+  function claimEvent(event) {
+    event.preventDefault();
+    event.stopImmediatePropagation();
+  }
+
   // ===== キー処理：Normal Mode =====
   function handleNormalKey(key, event) {
     // 数字カウントプレフィックス
@@ -896,7 +958,7 @@
     if (prefix && keyMap[candidate2]) {
       clearTimeout(keyBufferTimer);
       keyBuffer = "";
-      event.preventDefault();
+      claimEvent(event);
       COMMAND_MAP[keyMap[candidate2]]?.(count);
       return;
     }
@@ -912,8 +974,7 @@
     // 2ストロークのプレフィックスになりうるか確認
     const isPrefix = Object.keys(keyMap).some((k) => k.length === 2 && k[0] === key);
     if (isPrefix) {
-      // ページ側のショートカット（GitHub等）と競合しないよう抑制
-      event.preventDefault();
+      claimEvent(event);
       keyBuffer = key;
       clearTimeout(keyBufferTimer);
       keyBufferTimer = setTimeout(() => { keyBuffer = ""; }, 1500);
@@ -923,8 +984,7 @@
     // 1ストロークコマンド
     const command = keyMap[key];
     if (command) {
-      // ページ側のキーハンドラ（GitHub hotkey等）が defaultPrevented を確認する前に抑制する
-      event.preventDefault();
+      claimEvent(event);
       COMMAND_MAP[command]?.(count);
     }
     keyBuffer = "";
@@ -1080,7 +1140,8 @@
   helpBackdrop.addEventListener("mousedown", () => exitHelp());
 
   // ===== メインキーハンドラ =====
-  document.addEventListener("keydown", (event) => {
+  window.addEventListener("keydown", (event) => {
+    if (event.key === "F5") return; // ブラウザリロードは常に許可
     if (["Control", "Alt", "Shift", "Meta"].includes(event.key)) return;
     if (event.ctrlKey || event.altKey || event.metaKey) return;
 
@@ -1091,7 +1152,7 @@
         if (key === "Escape") { setMode("normal"); document.activeElement?.blur(); showHud("-- NORMAL --"); }
         return;
       case "hint":
-        event.preventDefault();
+        claimEvent(event);
         handleHintKey(key);
         return;
       case "find": case "vomnibar":
@@ -1101,7 +1162,7 @@
         return;
       case "visual":
       case "visualLine":
-        event.preventDefault();
+        claimEvent(event);
         handleVisualKey(key);
         return;
       default: {
@@ -1135,7 +1196,7 @@
     }
   }, true);
 
-  document.addEventListener("keyup", (event) => {
+  window.addEventListener("keyup", (event) => {
     CoreScroller.onKeyup(event);
   }, true);
 
