@@ -1,0 +1,92 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <title>Video Auto-Advance Test</title>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body { overflow-y: scroll; }
+    .item {
+      width: 100%;
+      height: 100vh;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      position: relative;
+    }
+    .item:nth-child(1) { background: #e74c3c; }
+    .item:nth-child(2) { background: #3498db; }
+    .item:nth-child(3) { background: #2ecc71; }
+    .item:nth-child(4) { background: #f39c12; }
+    .item:nth-child(5) { background: #9b59b6; }
+    .label {
+      position: absolute;
+      top: 20px;
+      left: 20px;
+      font-size: 24px;
+      font-weight: bold;
+      color: white;
+    }
+    video {
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+      position: absolute;
+      top: 0; left: 0;
+    }
+  </style>
+</head>
+<body>
+  <div class="item" id="item-0">
+    <div class="label">Video 1</div>
+    <video id="video-0"></video>
+  </div>
+  <div class="item" id="item-1">
+    <div class="label">Video 2</div>
+    <video id="video-2"></video>
+  </div>
+  <div class="item" id="item-2">
+    <div class="label">Video 3</div>
+    <video id="video-3"></video>
+  </div>
+  <div class="item" id="item-3">
+    <div class="label">Video 4</div>
+    <video id="video-4"></video>
+  </div>
+  <div class="item" id="item-4">
+    <div class="label">Video 5</div>
+    <video id="video-5"></video>
+  </div>
+
+  <div id="log" style="position:fixed;bottom:0;left:0;background:rgba(0,0,0,0.8);color:white;font-size:12px;padding:8px;max-height:120px;overflow-y:auto;width:100%;z-index:9999;"></div>
+
+  <script>
+    // ログ表示
+    window.__log = function(msg) {
+      const el = document.getElementById('log');
+      el.textContent += msg + '\n';
+      el.scrollTop = el.scrollHeight;
+    };
+
+    // ended イベントが発火するたびにログ
+    document.querySelectorAll('video').forEach((v, i) => {
+      v.addEventListener('ended', () => {
+        const rect = v.getBoundingClientRect();
+        window.__log(`[ended] video-${i} rect.top=${rect.top.toFixed(0)} rect.bottom=${rect.bottom.toFixed(0)} scrollY=${window.scrollY.toFixed(0)}`);
+      });
+    });
+
+    window.addEventListener('scroll', () => {
+      window.__log(`[scroll] scrollY=${window.scrollY.toFixed(0)}`);
+    }, { passive: true });
+
+    // テスト用: 指定ビデオに ended を発火させる
+    window.__fireEnded = function(index) {
+      const v = document.querySelectorAll('video')[index];
+      const rect = v.getBoundingClientRect();
+      window.__log(`[fireEnded] video-${index} rect.top=${rect.top.toFixed(0)} rect.bottom=${rect.bottom.toFixed(0)} innerHeight=${window.innerHeight}`);
+      v.dispatchEvent(new Event('ended'));
+    };
+  </script>
+</body>
+</html>

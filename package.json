@@ -1,0 +1,15 @@
+{
+  "name": "vimium_homemade",
+  "version": "1.0.0",
+  "description": "セキュリティ要件によりOSS拡張機能が使用できない環境向けに自作したVimium互換のChrome Extension。",
+  "main": "background.js",
+  "scripts": {
+    "test": "playwright test --reporter=line"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "devDependencies": {
+    "@playwright/test": "^1.60.0"
+  }
+}
