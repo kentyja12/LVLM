@@ -158,3 +158,10 @@ Vimiumのスムーズスクロール実装を移植。長押しでの速度キ�
 - Chrome Web Store ページでは動作不可
 - PDFビューアーでは動作不可
 - `file://` は拡張機能の設定で手動許可が必要
+
+---
+
+## ライセンス
+
+MIT License — 詳細は [LICENSE](./LICENSE) を参照。
+スクローラー実装は [Vimium](https://github.com/philc/vimium) (MIT, Copyright © Phil Crosby, Ilya Sukhar) を参考にしています。
