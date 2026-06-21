@@ -121,6 +121,12 @@
       for (const child of children) { const found = search(child.el); if (found) return found; }
       return null;
     }
+    // <main> / role="main" 内を優先探索（LinkedIn 等で sidebar より main content を正しく選択するため）
+    const mainEl = document.querySelector("main, [role='main']");
+    if (mainEl) {
+      const inMain = search(mainEl);
+      if (inMain) return inMain;
+    }
     return search(document.body || scrollingEl) || scrollingEl;
   }
 

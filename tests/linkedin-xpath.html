@@ -1,0 +1,321 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <title>LinkedIn XPath Structure Test</title>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    html, body {
+      height: 100%;
+      overflow: hidden;
+      font-family: sans-serif;
+    }
+
+    /* XPath: /html/body/div[1] — アプリルート */
+    #app {
+      height: 100%;
+      display: flex;
+      flex-direction: column;
+    }
+
+    /* グローバルナビ (body/div[1]の中の最初のdiv) */
+    #global-nav {
+      flex-shrink: 0;
+      height: 52px;
+      background: #fff;
+      border-bottom: 1px solid #e0e0e0;
+      display: flex;
+      align-items: center;
+      padding: 0 16px;
+      font-weight: bold;
+      color: #0077b5;
+    }
+
+    /* XPath: .../div[2] — メインレイアウト */
+    #main-layout {
+      flex: 1;
+      display: flex;
+      overflow: hidden;
+    }
+
+    /* XPath: .../div[2]/div[1] — 左サイドバー（スクロール可能）
+       実際のLinkedInではサイドバーがメインより面積が大きいケースがある */
+    #sidebar {
+      width: 55%;          /* サイドバーを広くして area > target になるよう設定 */
+      overflow-y: auto;   /* ← スクロール可能、バグの原因候補 */
+      border-right: 1px solid #e0e0e0;
+      flex-shrink: 0;
+    }
+
+    /* XPath: .../div[2]/div[2] — コンテンツエリア */
+    #content-area {
+      flex: 1;
+      overflow: hidden;
+      display: flex;
+      flex-direction: column;
+    }
+
+    /* XPath: .../div[2]/div[2]/div[2] — スキャフォールド */
+    #scaffold-nav {
+      flex-shrink: 0;
+      height: 48px;
+      background: #f3f2ee;
+      border-bottom: 1px solid #e0e0e0;
+      display: flex;
+      align-items: center;
+      padding: 0 16px;
+      font-size: 13px;
+      color: #666;
+    }
+
+    /* XPath: .../div[2]/div[2]/div[2] — メインラッパー */
+    #main-wrapper {
+      flex: 1;
+      overflow: hidden;
+    }
+
+    /* XPath: .../div[2]/div[2]/div[2]/div — コンテナ */
+    #container {
+      height: 100%;
+      display: flex;
+    }
+
+    /* XPath: .../main — <main>ランドマーク */
+    main {
+      flex: 1;
+      overflow: hidden;
+      display: flex;
+    }
+
+    /* XPath: .../main/div — インナーラッパー */
+    #inner-wrapper {
+      flex: 1;
+      overflow: hidden;
+    }
+
+    /* XPath: .../main/div/div — ターゲット: ここをスクロールしたい */
+    #target-scroll {
+      height: 100%;
+      overflow-y: auto;   /* ← これが正しいスクロール要素 */
+    }
+
+    /* サイドバーコンテンツ */
+    .sidebar-item {
+      padding: 12px 16px;
+      border-bottom: 1px solid #e5e5e5;
+      cursor: pointer;
+      font-size: 13px;
+    }
+    .sidebar-item:hover { background: #f3f2ee; }
+    .sidebar-item.active { border-left: 3px solid #0077b5; }
+
+    /* ジョブ詳細コンテンツ */
+    .job-header {
+      padding: 24px;
+      border-bottom: 1px solid #e0e0e0;
+      position: sticky;
+      top: 0;
+      background: #fff;
+      z-index: 10;
+    }
+
+    .job-header h1 {
+      font-size: 20px;
+      margin-bottom: 8px;
+    }
+
+    .job-body {
+      padding: 24px;
+    }
+
+    .section {
+      margin-bottom: 28px;
+    }
+
+    .section h2 {
+      font-size: 16px;
+      margin-bottom: 8px;
+      color: #000;
+    }
+
+    .section p {
+      line-height: 1.6;
+      color: #444;
+      font-size: 14px;
+    }
+
+    #log {
+      position: fixed;
+      bottom: 0; left: 0; right: 0;
+      background: rgba(0,0,0,0.85);
+      color: #0f0;
+      font-family: monospace;
+      font-size: 11px;
+      padding: 6px 8px;
+      max-height: 100px;
+      overflow-y: auto;
+      z-index: 9999;
+    }
+  </style>
+</head>
+<body>
+
+  <!-- /html/body/div[1] -->
+  <div id="app">
+
+    <!-- div[1] inside div[1]: global nav (XPathでは数えない) -->
+    <div id="global-nav">LinkedIn</div>
+
+    <!-- /html/body/div[1]/div[2]: main-layout -->
+    <div id="main-layout">
+
+      <!-- div[1] inside main-layout: sidebar (スクロール可能→バグ候補) -->
+      <div id="sidebar">
+        <div style="padding:8px 16px;background:#f3f2ee;font-size:12px;color:#666">25 results</div>
+        <script>
+          for (let i = 1; i <= 25; i++) {
+            document.write(`<div class="sidebar-item${i===1?' active':''}" tabindex="0" data-id="${i}">
+              <div style="font-weight:600">FPGA Engineer #${i}</div>
+              <div style="color:#666;margin-top:2px">London · £200k</div>
+            </div>`);
+          }
+        </script>
+      </div>
+
+      <!-- div[2] inside main-layout: content-area -->
+      <div id="content-area">
+
+        <!-- div[1] inside content-area: scaffold nav -->
+        <div id="scaffold-nav">
+          <span>Jobs &rsaquo; FPGA Software Engineer</span>
+        </div>
+
+        <!-- div[2] inside content-area: main-wrapper -->
+        <div id="main-wrapper">
+
+          <!-- div inside main-wrapper: container -->
+          <div id="container">
+
+            <!-- main element -->
+            <main>
+
+              <!-- div inside main: inner-wrapper -->
+              <div id="inner-wrapper">
+
+                <!-- div inside inner-wrapper: TARGET SCROLL ELEMENT
+                     XPath: /html/body/div[1]/div[2]/div[2]/div[2]/div/main/div/div -->
+                <div id="target-scroll">
+
+                  <div class="job-header">
+                    <h1 id="job-title" tabindex="-1">FPGA Software Engineer — Paragon Alpha</h1>
+                    <p style="color:#666;font-size:14px">London · On-site · Full-time</p>
+                    <button style="margin-top:12px;padding:8px 16px;background:#0077b5;color:#fff;border:none;border-radius:4px">Apply</button>
+                  </div>
+
+                  <div class="job-body">
+                    <div class="section">
+                      <h2>About the job</h2>
+                      <p>We are seeking an experienced FPGA Software Engineer to join our systematic hedge fund for designing high-performance FPGA systems for low-latency trading.</p>
+                    </div>
+                    <div class="section">
+                      <h2>Responsibilities</h2>
+                      <p>Design and implement FPGA-based trading systems. Optimize FPGA designs for lower latency. Collaborate with quantitative researchers to implement strategies in hardware.</p>
+                    </div>
+                    <div class="section">
+                      <h2>Requirements</h2>
+                      <p>5+ years FPGA development. Proficiency in VHDL/Verilog. Xilinx/Intel FPGAs experience. Low-latency system design knowledge. Network protocols expertise.</p>
+                    </div>
+                    <div class="section">
+                      <h2>Nice to Have</h2>
+                      <p>OpenCL or HLS experience. Market microstructure knowledge. Background in systematic trading. Linux kernel bypass techniques familiarity.</p>
+                    </div>
+                    <div class="section">
+                      <h2>What We Offer</h2>
+                      <p>Competitive salary £150k–£300k. Annual performance bonus. Comprehensive health insurance. Conference budget and training opportunities.</p>
+                    </div>
+                    <div class="section">
+                      <h2>About Paragon Alpha</h2>
+                      <p>Systematic hedge fund in London specializing in HFT across global equity and derivatives markets using cutting-edge hardware and software solutions.</p>
+                    </div>
+                    <div class="section">
+                      <h2>Application Process</h2>
+                      <p>HR screening → Technical phone interview → Take-home FPGA challenge → On-site interviews → Offer.</p>
+                    </div>
+                    <div class="section">
+                      <h2>Skills</h2>
+                      <p>FPGA · VHDL · Verilog · Xilinx · Intel Altera · Low Latency · HFT · SystemVerilog · RTL Design · PCIe · 10GbE · RDMA</p>
+                    </div>
+                    <div style="height:200px;display:flex;align-items:center;justify-content:center;color:#aaa">
+                      — End of description —
+                    </div>
+                  </div>
+
+                </div><!-- #target-scroll -->
+              </div><!-- #inner-wrapper -->
+            </main>
+
+          </div><!-- #container -->
+        </div><!-- #main-wrapper -->
+      </div><!-- #content-area -->
+    </div><!-- #main-layout -->
+  </div><!-- #app -->
+
+  <div id="log"></div>
+
+  <script>
+    function log(msg) {
+      const el = document.getElementById('log');
+      el.textContent += msg + '\n';
+      el.scrollTop = el.scrollHeight;
+    }
+
+    // XPath 検証: target-scroll が正しいXPathにあるか確認
+    function getXPath(el) {
+      if (!el || el === document.documentElement) return '/html';
+      if (el === document.body) return '/html/body';
+      const parent = el.parentElement;
+      const siblings = [...parent.children];
+      const sameTag = siblings.filter(s => s.tagName === el.tagName);
+      const idx = sameTag.indexOf(el) + 1;
+      const tagName = el.tagName.toLowerCase();
+      const part = sameTag.length > 1 ? `${tagName}[${idx}]` : tagName;
+      return getXPath(parent) + '/' + part;
+    }
+
+    window.addEventListener('load', () => {
+      const target = document.getElementById('target-scroll');
+      const xp = getXPath(target);
+      log(`[xpath] target-scroll: ${xp}`);
+
+      // LinkedIn: ページロード後にジョブタイトルにフォーカス
+      document.getElementById('job-title').focus();
+      log(`[init] focused: ${document.activeElement.id}`);
+      log(`[sidebar] scrollable=${document.getElementById('sidebar').scrollHeight > document.getElementById('sidebar').clientHeight}`);
+      log(`[target] scrollable=${target.scrollHeight > target.clientHeight}`);
+    });
+
+    // サイドバーアイテムクリック時: LinkedIn の再フォーカス動作
+    document.addEventListener('click', (e) => {
+      const item = e.target.closest('.sidebar-item');
+      if (item) {
+        document.querySelectorAll('.sidebar-item').forEach(i => i.classList.remove('active'));
+        item.classList.add('active');
+        setTimeout(() => {
+          document.getElementById('job-title').focus();
+          log(`[click] re-focused to #job-title`);
+        }, 50);
+      }
+    });
+
+    // スクロール監視
+    document.getElementById('target-scroll').addEventListener('scroll', () => {
+      log(`[scroll] target-scroll scrollTop=${document.getElementById('target-scroll').scrollTop}`);
+    }, { passive: true });
+
+    document.getElementById('sidebar').addEventListener('scroll', () => {
+      log(`[scroll] sidebar scrollTop=${document.getElementById('sidebar').scrollTop}`);
+    }, { passive: true });
+  </script>
+</body>
+</html>
