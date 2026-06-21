@@ -153,6 +153,13 @@
   document.addEventListener("DOMActivate", (e) => { activatedElement = e.target; }, true);
   document.addEventListener("click",       (e) => { activatedElement = e.target; }, true);
 
+  // SPA ナビゲーション時に activatedElement をリセット（LinkedIn 等のシングルページアプリ対応）
+  const _origPushState = history.pushState.bind(history);
+  history.pushState = (...args) => { _origPushState(...args); activatedElement = null; };
+  const _origReplaceState = history.replaceState.bind(history);
+  history.replaceState = (...args) => { _origReplaceState(...args); activatedElement = null; };
+  window.addEventListener("popstate", () => { activatedElement = null; });
+
   // CoreScroller: Vimium の calibration ベースアニメーター
   //   - 各キー押下で独立したアニメーターを起動
   //   - repeat 中は新アニメーターを作らず、既存アニメーターが myKeyIsStillDown() で継続
@@ -238,17 +245,46 @@
     },
   };
 
+  // フォーカス要素から最近傍のスクロールコンテナを取得する
+  // スクロール不可能な scrollingEl にしか辿り着けない場合は null を返す
+  function scrollContainerFromFocus(direction, sign) {
+    const active = document.activeElement;
+    if (!active || active === document.body || active === document.documentElement) return null;
+    const scrollingEl = getScrollingElement();
+    const candidate = findScrollableElement(active, direction, sign);
+    if (candidate === scrollingEl &&
+        !doesScroll(scrollingEl, direction, 1) && !doesScroll(scrollingEl, direction, -1)) {
+      return null; // スクロール不能な scrollingEl へのフォールバックは採用しない
+    }
+    return candidate;
+  }
+
   function doScroll(dx, dy, count = 1) {
+    // DOM から切り離された stale な要素はリセット（SPA でのナビゲーション後に発生する）
+    if (activatedElement && !activatedElement.isConnected) activatedElement = null;
     if (!activatedElement) {
       activatedElement = firstScrollableElement() || getScrollingElement();
     }
+
     if (dy !== 0) {
       const amount = dy * count;
-      CoreScroller.scroll(findScrollableElement(activatedElement, "y", amount), "y", amount);
+      const fromActivated = findScrollableElement(activatedElement, "y", amount);
+      // document.activeElement が別のスクロールコンテナを指す場合は優先する
+      // （LinkedIn等SPAで左パネルクリック後も右パネルの詳細をスクロールするため）
+      const fromFocus = scrollContainerFromFocus("y", Math.sign(dy));
+      CoreScroller.scroll(
+        (fromFocus && fromFocus !== fromActivated) ? fromFocus : fromActivated,
+        "y", amount,
+      );
     }
     if (dx !== 0) {
       const amount = dx * count;
-      CoreScroller.scroll(findScrollableElement(activatedElement, "x", amount), "x", amount);
+      const fromActivated = findScrollableElement(activatedElement, "x", amount);
+      const fromFocus = scrollContainerFromFocus("x", Math.sign(dx));
+      CoreScroller.scroll(
+        (fromFocus && fromFocus !== fromActivated) ? fromFocus : fromActivated,
+        "x", amount,
+      );
     }
   }
 

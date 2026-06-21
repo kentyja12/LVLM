@@ -1,0 +1,260 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <title>LinkedIn-like Job Page</title>
+  <style>
+    /* LinkedIn の典型的なレイアウト:
+       - html/body は overflow:hidden (ページレベルのスクロールなし)
+       - グローバルナビが fixed
+       - メインコンテンツコンテナが overflow-y:auto で独自スクロール
+    */
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    html, body {
+      height: 100%;
+      overflow: hidden; /* ページ自体はスクロールしない */
+      font-family: sans-serif;
+    }
+
+    /* グローバルナビ (fixed) */
+    #global-nav {
+      position: fixed;
+      top: 0; left: 0; right: 0;
+      height: 52px;
+      background: #fff;
+      border-bottom: 1px solid #e0e0e0;
+      display: flex; align-items: center; padding: 0 16px;
+      z-index: 100;
+    }
+
+    /* メインレイアウトコンテナ */
+    #main-container {
+      position: fixed;
+      top: 52px; left: 0; right: 0; bottom: 0;
+      display: flex;
+    }
+
+    /* 左パネル: ジョブ一覧 (独自スクロール) */
+    #job-list-panel {
+      width: 380px;
+      overflow-y: auto;
+      border-right: 1px solid #e0e0e0;
+      flex-shrink: 0;
+    }
+
+    /* 右パネル: ジョブ詳細 (独自スクロール) */
+    #job-detail-panel {
+      flex: 1;
+      overflow-y: auto;
+    }
+
+    /* ジョブ詳細内の sticky ヘッダー */
+    #job-detail-header {
+      position: sticky;
+      top: 0;
+      background: #fff;
+      border-bottom: 1px solid #e0e0e0;
+      padding: 16px;
+      z-index: 10;
+    }
+
+    #job-detail-header h1 {
+      font-size: 20px;
+      color: #000;
+    }
+
+    .job-item {
+      padding: 16px;
+      border-bottom: 1px solid #e5e5e5;
+      cursor: pointer;
+    }
+    .job-item:hover { background: #f3f2ee; }
+
+    .job-content {
+      padding: 24px;
+    }
+
+    .section { margin-bottom: 32px; }
+    .section h2 { font-size: 16px; margin-bottom: 8px; }
+    .section p { line-height: 1.6; color: #444; }
+
+    #log {
+      position: fixed;
+      bottom: 0; left: 0; right: 0;
+      background: rgba(0,0,0,0.85);
+      color: #0f0;
+      font-family: monospace;
+      font-size: 11px;
+      padding: 6px 8px;
+      max-height: 120px;
+      overflow-y: auto;
+      z-index: 9999;
+    }
+  </style>
+</head>
+<body>
+
+  <!-- グローバルナビ -->
+  <nav id="global-nav">
+    <span style="font-weight:bold;color:#0077b5">LinkedIn</span>
+    <input placeholder="Search" style="margin-left:16px;padding:6px 12px;border:1px solid #ccc;border-radius:4px">
+  </nav>
+
+  <!-- メインコンテナ -->
+  <div id="main-container">
+
+    <!-- 左パネル: ジョブ一覧 -->
+    <div id="job-list-panel">
+      <div style="padding:12px;background:#f3f2ee;font-size:13px;color:#666">
+        1,234 results
+      </div>
+      <!-- 複数のジョブアイテム -->
+      <script>
+        for (let i = 1; i <= 20; i++) {
+          document.write(`
+            <div class="job-item" data-id="${i}" tabindex="0">
+              <div style="font-weight:600">FPGA Engineer #${i}</div>
+              <div style="font-size:13px;color:#666">Paragon Alpha · London</div>
+              <div style="font-size:12px;color:#888;margin-top:4px">2 days ago · 150 applicants</div>
+            </div>
+          `);
+        }
+      </script>
+    </div>
+
+    <!-- 右パネル: ジョブ詳細 -->
+    <div id="job-detail-panel">
+
+      <!-- sticky ヘッダー (tabindex=-1 で LinkedIn がフォーカスする) -->
+      <div id="job-detail-header">
+        <h1 id="job-title" tabindex="-1">FPGA Software Engineer - Systematic Hedge Fund</h1>
+        <div style="font-size:14px;color:#666;margin-top:4px">
+          Paragon Alpha · London, England · On-site · Full-time
+        </div>
+        <div style="margin-top:12px">
+          <button style="padding:8px 16px;background:#0077b5;color:#fff;border:none;border-radius:4px;cursor:pointer">
+            Apply
+          </button>
+        </div>
+      </div>
+
+      <!-- ジョブ詳細コンテンツ -->
+      <div class="job-content">
+        <div class="section">
+          <h2>About the job</h2>
+          <p>We are seeking an experienced FPGA Software Engineer to join our systematic hedge fund.
+          You will be responsible for designing and implementing high-performance FPGA systems
+          for low-latency trading applications.</p>
+        </div>
+
+        <div class="section">
+          <h2>Responsibilities</h2>
+          <p>Design and implement FPGA-based trading systems. Optimize existing FPGA designs for
+          lower latency and higher throughput. Collaborate with quantitative researchers to
+          implement trading strategies in hardware. Maintain and improve CI/CD pipelines for
+          FPGA development.</p>
+        </div>
+
+        <div class="section">
+          <h2>Requirements</h2>
+          <p>5+ years of FPGA development experience. Proficiency in VHDL and/or Verilog.
+          Experience with Xilinx or Intel/Altera FPGAs. Knowledge of high-frequency trading
+          systems. Strong understanding of network protocols (TCP/IP, UDP). Experience with
+          low-latency system design.</p>
+        </div>
+
+        <div class="section">
+          <h2>Nice to Have</h2>
+          <p>Experience with OpenCL or HLS. Knowledge of market microstructure.
+          Background in systematic trading. Familiarity with Linux kernel bypass techniques.</p>
+        </div>
+
+        <div class="section">
+          <h2>What We Offer</h2>
+          <p>Competitive base salary (£150k - £300k DOE). Annual bonus tied to fund performance.
+          Comprehensive health insurance. Flexible working arrangements. Regular team lunches.
+          Conference attendance and training budget.</p>
+        </div>
+
+        <div class="section">
+          <h2>About Paragon Alpha</h2>
+          <p>Paragon Alpha is a systematic hedge fund based in London, specializing in
+          high-frequency and algorithmic trading across global equity and derivatives markets.
+          Our technology-first approach leverages cutting-edge hardware and software solutions
+          to generate consistent alpha.</p>
+        </div>
+
+        <div class="section">
+          <h2>Application Process</h2>
+          <p>Initial screening call with HR. Technical phone interview with senior engineers.
+          Take-home FPGA design challenge. On-site interviews with the engineering and quant teams.
+          Offer and references check.</p>
+        </div>
+
+        <div class="section">
+          <h2>Additional Information</h2>
+          <p>This role requires UK work authorization. Relocation assistance available.
+          Start date flexible. The role is based in our London office with optional remote
+          work on Fridays.</p>
+        </div>
+
+        <div class="section">
+          <h2>Skills</h2>
+          <p>FPGA · VHDL · Verilog · Xilinx · Intel Altera · Low Latency · HFT ·
+          SystemVerilog · RTL Design · Timing Closure · PCIe · 10GbE · RDMA</p>
+        </div>
+
+        <div style="height:200px;display:flex;align-items:center;justify-content:center;color:#aaa">
+          — End of job description —
+        </div>
+      </div>
+    </div><!-- #job-detail-panel -->
+
+  </div><!-- #main-container -->
+
+  <div id="log"></div>
+
+  <script>
+    function log(msg) {
+      const el = document.getElementById('log');
+      el.textContent += msg + '\n';
+      el.scrollTop = el.scrollHeight;
+    }
+
+    // LinkedIn がページロード後にジョブタイトルにフォーカスを移す動作をシミュレート
+    window.addEventListener('load', () => {
+      const title = document.getElementById('job-title');
+      title.focus();
+      log(`[init] focused: #${document.activeElement.id || document.activeElement.tagName}`);
+      log(`[init] job-detail-panel scrollTop=${document.getElementById('job-detail-panel').scrollTop}`);
+      log(`[init] document.scrollingElement.scrollHeight=${document.scrollingElement?.scrollHeight}`);
+    });
+
+    // ジョブアイテムクリック時に LinkedIn がジョブ詳細パネルへフォーカスを移す動作をシミュレート
+    document.addEventListener('click', (e) => {
+      const item = e.target.closest('.job-item');
+      if (item) {
+        // LinkedIn は選択後に右パネルのタイトルにフォーカスを移す
+        setTimeout(() => {
+          document.getElementById('job-title').focus();
+          log(`[click] re-focused to #job-title`);
+        }, 50);
+      }
+    });
+
+    // スクロールを監視
+    document.getElementById('job-detail-panel').addEventListener('scroll', () => {
+      log(`[scroll] job-detail-panel scrollTop=${document.getElementById('job-detail-panel').scrollTop}`);
+    }, { passive: true });
+
+    document.getElementById('job-list-panel').addEventListener('scroll', () => {
+      log(`[scroll] job-list-panel scrollTop=${document.getElementById('job-list-panel').scrollTop}`);
+    }, { passive: true });
+
+    window.addEventListener('scroll', () => {
+      log(`[scroll] window scrollY=${window.scrollY}`);
+    }, { passive: true });
+  </script>
+</body>
+</html>
