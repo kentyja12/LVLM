@@ -1,0 +1,37 @@
+<!DOCTYPE html>
+<html><head><meta charset="utf-8"><title>Bug1 Carousel Test</title>
+<style>
+  body { margin: 0; font-family: sans-serif; }
+  /* ページを1500px にしてスクロール可能にする */
+  .spacer { height: 300px; background: #f0f0f0; display: flex; align-items: center; padding-left: 16px; color: #666; }
+  #buttons { padding: 16px; }
+  .tail { height: 1200px; }
+  #scroll-indicator { position: fixed; top: 8px; right: 8px; background: rgba(0,0,0,.7); color: #fff; padding: 4px 8px; border-radius: 4px; font-size: 13px; font-family: monospace; z-index: 9999; }
+  #status { position: fixed; bottom: 8px; right: 8px; background: rgba(0,0,0,.7); color: #0f0; padding: 4px 8px; border-radius: 4px; font-size: 13px; font-family: monospace; z-index: 9999; }
+</style></head>
+<body>
+  <div id="scroll-indicator">scrollY: 0</div>
+  <div id="status">clicked: none</div>
+  <div class="spacer">↑ 300px spacer (scroll 200px で carousel が viewport y=100 に来る)</div>
+  <div id="buttons">
+    <!--
+      IMPORTANT: このページで href 以外の hintable な要素は意図的に置かない。
+      next-btn のみが hintable → 必ずラベル "a" になる
+    -->
+    <a class="a-carousel-button a-carousel-goto-nextpage" role="button" href="#" id="next-btn"
+       style="display:inline-block;padding:8px 16px;background:#fff3cd;border:1px solid #ffc107;border-radius:4px;text-decoration:none;color:#333">
+      次のスライドセット
+    </a>
+  </div>
+  <div class="tail"></div>
+  <script>
+    window.addEventListener('scroll', () => {
+      document.getElementById('scroll-indicator').textContent = 'scrollY: ' + window.scrollY;
+    });
+    document.getElementById('next-btn').addEventListener('click', (e) => {
+      e.preventDefault();
+      window.__nextBtnClicked = true;
+      document.getElementById('status').textContent = 'clicked: YES';
+    });
+  </script>
+</body></html>

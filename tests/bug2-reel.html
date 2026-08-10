@@ -1,0 +1,45 @@
+<!DOCTYPE html>
+<html><head><meta charset="utf-8"><title>Bug2 Reel Test</title>
+<style>
+  html, body { margin: 0; padding: 0; height: 100%; overflow: hidden; }
+  .reel-container { height: 100vh; overflow-y: auto; scroll-snap-type: y mandatory; }
+  .reel-item { height: 100vh; scroll-snap-align: start; display: flex; align-items: center; justify-content: center; position: relative; background: #000; }
+  .label { position: absolute; bottom: 20px; color: #fff; font-family: sans-serif; font-size: 18px; }
+  #log { position: fixed; top: 0; left: 0; right: 0; background: rgba(0,0,0,0.7); color: #0f0; font-family: monospace; font-size: 11px; padding: 4px 8px; max-height: 80px; overflow-y: auto; z-index: 9999; }
+</style></head>
+<body>
+  <div id="log"></div>
+  <div class="reel-container" id="reel">
+    <div class="reel-item">
+      <video id="v1" muted playsinline></video>
+      <div class="label">Reel 1</div>
+    </div>
+    <div class="reel-item" style="background:#111">
+      <video id="v2" muted playsinline></video>
+      <div class="label">Reel 2</div>
+    </div>
+  </div>
+  <script>
+    function log(msg) {
+      const el = document.getElementById('log');
+      el.textContent += msg + '\n';
+      el.scrollTop = el.scrollHeight;
+    }
+    window.__fireVideoEnded = function(id) {
+      const v = document.getElementById(id);
+      v.dispatchEvent(new Event('ended'));
+      log('[test] fired ended on ' + id);
+    };
+    window.__fireVideoTimeUpdate = function(id, currentTime, duration) {
+      const v = document.getElementById(id);
+      Object.defineProperty(v, 'duration', { value: duration, configurable: true });
+      Object.defineProperty(v, 'currentTime', { value: currentTime, configurable: true });
+      v.dispatchEvent(new Event('timeupdate'));
+      log('[test] fired timeupdate on ' + id + ' ct=' + currentTime + ' dur=' + duration);
+    };
+    document.getElementById('reel').addEventListener('scroll', () => {
+      log('[scroll] reel scrollTop=' + document.getElementById('reel').scrollTop);
+    }, { passive: true });
+    log('[init] reel page ready');
+  </script>
+</body></html>

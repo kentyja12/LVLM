@@ -149,6 +149,9 @@
         if (clipsY) { top  = Math.max(top,  nr.top);  bottom = Math.min(bottom, nr.bottom); }
         if (left >= right || top >= bottom) return null;
       }
+      // position:fixed の祖先はビューポート基準で描画されるため、
+      // それより上の祖先の overflow クリッピングは el に影響しない
+      if (s.position === "fixed") break;
       node = node.parentElement;
     }
     return { left, top, right, bottom, width: right - left, height: bottom - top };
@@ -385,33 +388,48 @@
     }
   });
 
-  function onVideoEnded() {
+  function onVideoEnded(video) {
     if (!videoAutoAdvanceEnabled) return;
     const now = Date.now();
     if (now - lastAutoAdvanceTime < 1500) return;
     lastAutoAdvanceTime = now;
     showHud("Auto-advance: 次の動画へ");
-    const scrollEl = firstScrollableElement() || getScrollingElement();
-    performScroll(scrollEl, "y", window.innerHeight);
+    // video 要素から最近傍の scroll コンテナを探す（YouTube Shorts の #shorts-container 等対応）。
+    // firstScrollableElement() は document.scrollingElement を優先するため Shorts では外れることがある。
+    const scrollEl = findScrollableElement(video, "y", 1);
+    const isDocScrollEl = scrollEl === getScrollingElement();
+    const target = (!isDocScrollEl && scrollEl) ? scrollEl : (firstScrollableElement() || getScrollingElement());
+    performScroll(target, "y", target.clientHeight || window.innerHeight);
   }
 
   function attachVideoListener(video) {
     if (videoListeners.some((v) => v.el === video)) return;
-    const fn = () => onVideoEnded();
-    video.addEventListener("ended", fn);
-    videoListeners.push({ el: video, fn });
+    const onEnded = () => onVideoEnded(video);
+    // timeupdate: 残り 0.3 秒以下かつ duration が有効な場合に発火（リール等 ended が遅れるケース対策）
+    const onTimeUpdate = () => {
+      if (video.duration > 0 && video.currentTime >= video.duration - 0.3) onVideoEnded(video);
+    };
+    video.addEventListener("ended", onEnded);
+    video.addEventListener("timeupdate", onTimeUpdate);
+    videoListeners.push({ el: video, fn: onEnded, fn2: onTimeUpdate });
   }
 
   function enableVideoAutoAdvance() {
     videoAutoAdvanceEnabled = true;
     document.querySelectorAll("video").forEach(attachVideoListener);
-    videoObserver.observe(document.body, { childList: true, subtree: true });
+    // document.body が存在しない場合（document_start 直後の iframe 等）は observe をスキップ
+    if (document.body) {
+      videoObserver.observe(document.body, { childList: true, subtree: true });
+    }
     showHud("Auto-advance: ON (動画終了→次へスクロール)", 0);
   }
 
   function disableVideoAutoAdvance() {
     videoAutoAdvanceEnabled = false;
-    videoListeners.forEach(({ el, fn }) => el.removeEventListener("ended", fn));
+    videoListeners.forEach(({ el, fn, fn2 }) => {
+      el.removeEventListener("ended", fn);
+      el.removeEventListener("timeupdate", fn2);
+    });
     videoListeners = [];
     lastAutoAdvanceTime = 0;
     videoObserver.disconnect();
@@ -729,8 +747,17 @@
       else { el.click(); }
       return;
     }
-    if (el.tagName === "A" && el.href) { window.location.href = el.href; }
-    else { el.click(); el.focus(); }
+    if (el.tagName === "A" && el.href) {
+      const rawHref = el.getAttribute("href") || "";
+      if (rawHref === "#" || (rawHref.startsWith("#") && rawHref.length > 0 && !rawHref.includes("/"))) {
+        // fragment-only href: el.click() でクリックハンドラを経由させる。
+        // ページ側で e.preventDefault() を呼べば navigation が止まる（Amazon carousel など）。
+        // window.location.href 直接書き換えではクリックハンドラが発火しないため使わない。
+        el.click();
+      } else {
+        window.location.href = el.href;
+      }
+    } else { el.click(); el.focus(); }
   }
 
   // ===== Find Mode =====
