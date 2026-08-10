@@ -1,7 +1,7 @@
 {
   "manifest_version": 3,
   "name": "Vim less mouse. Homemade",
-  "version": "1.2.2",
+  "version": "1.2.3",
   "description": "like Vim. less mouse.",
   "permissions": [
     "tabs",

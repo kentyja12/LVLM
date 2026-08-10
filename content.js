@@ -141,8 +141,9 @@
     while (node && node !== document.documentElement) {
       const s = window.getComputedStyle(node);
       const ox = s.overflowX, oy = s.overflowY;
-      const clipsX = /hidden|clip|auto|scroll/.test(ox);
-      const clipsY = /hidden|clip|auto|scroll/.test(oy);
+      // hidden/clip は常にクリップ。auto/scroll はコンテナ実寸 > 0 の場合のみ（高さ0の body を除外）
+      const clipsX = /hidden|clip/.test(ox) || (/auto|scroll/.test(ox) && node.clientWidth > 0);
+      const clipsY = /hidden|clip/.test(oy) || (/auto|scroll/.test(oy) && node.clientHeight > 0);
       if (clipsX || clipsY) {
         const nr = node.getBoundingClientRect();
         if (clipsX) { left = Math.max(left, nr.left); right  = Math.min(right,  nr.right); }
