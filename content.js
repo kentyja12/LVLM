@@ -141,14 +141,18 @@
     while (node && node !== document.documentElement) {
       const s = window.getComputedStyle(node);
       const ox = s.overflowX, oy = s.overflowY;
-      const clipsX = /hidden|clip|auto|scroll/.test(ox);
-      const clipsY = /hidden|clip|auto|scroll/.test(oy);
+      // hidden/clip は常にクリップ。auto/scroll はコンテナ実寸 > 0 の場合のみ（高さ0の body を除外）
+      const clipsX = /hidden|clip/.test(ox) || (/auto|scroll/.test(ox) && node.clientWidth > 0);
+      const clipsY = /hidden|clip/.test(oy) || (/auto|scroll/.test(oy) && node.clientHeight > 0);
       if (clipsX || clipsY) {
         const nr = node.getBoundingClientRect();
         if (clipsX) { left = Math.max(left, nr.left); right  = Math.min(right,  nr.right); }
         if (clipsY) { top  = Math.max(top,  nr.top);  bottom = Math.min(bottom, nr.bottom); }
         if (left >= right || top >= bottom) return null;
       }
+      // position:fixed の祖先はビューポート基準で描画されるため、
+      // それより上の祖先の overflow クリッピングは el に影響しない
+      if (s.position === "fixed") break;
       node = node.parentElement;
     }
     return { left, top, right, bottom, width: right - left, height: bottom - top };
@@ -385,33 +389,48 @@
     }
   });
 
-  function onVideoEnded() {
+  function onVideoEnded(video) {
     if (!videoAutoAdvanceEnabled) return;
     const now = Date.now();
     if (now - lastAutoAdvanceTime < 1500) return;
     lastAutoAdvanceTime = now;
     showHud("Auto-advance: 次の動画へ");
-    const scrollEl = firstScrollableElement() || getScrollingElement();
-    performScroll(scrollEl, "y", window.innerHeight);
+    // video 要素から最近傍の scroll コンテナを探す（YouTube Shorts の #shorts-container 等対応）。
+    // firstScrollableElement() は document.scrollingElement を優先するため Shorts では外れることがある。
+    const scrollEl = findScrollableElement(video, "y", 1);
+    const isDocScrollEl = scrollEl === getScrollingElement();
+    const target = (!isDocScrollEl && scrollEl) ? scrollEl : (firstScrollableElement() || getScrollingElement());
+    performScroll(target, "y", target.clientHeight || window.innerHeight);
   }
 
   function attachVideoListener(video) {
     if (videoListeners.some((v) => v.el === video)) return;
-    const fn = () => onVideoEnded();
-    video.addEventListener("ended", fn);
-    videoListeners.push({ el: video, fn });
+    const onEnded = () => onVideoEnded(video);
+    // timeupdate: 残り 0.3 秒以下かつ duration が有効な場合に発火（リール等 ended が遅れるケース対策）
+    const onTimeUpdate = () => {
+      if (video.duration > 0 && video.currentTime >= video.duration - 0.3) onVideoEnded(video);
+    };
+    video.addEventListener("ended", onEnded);
+    video.addEventListener("timeupdate", onTimeUpdate);
+    videoListeners.push({ el: video, fn: onEnded, fn2: onTimeUpdate });
   }
 
   function enableVideoAutoAdvance() {
     videoAutoAdvanceEnabled = true;
     document.querySelectorAll("video").forEach(attachVideoListener);
-    videoObserver.observe(document.body, { childList: true, subtree: true });
+    // document.body が存在しない場合（document_start 直後の iframe 等）は observe をスキップ
+    if (document.body) {
+      videoObserver.observe(document.body, { childList: true, subtree: true });
+    }
     showHud("Auto-advance: ON (動画終了→次へスクロール)", 0);
   }
 
   function disableVideoAutoAdvance() {
     videoAutoAdvanceEnabled = false;
-    videoListeners.forEach(({ el, fn }) => el.removeEventListener("ended", fn));
+    videoListeners.forEach(({ el, fn, fn2 }) => {
+      el.removeEventListener("ended", fn);
+      el.removeEventListener("timeupdate", fn2);
+    });
     videoListeners = [];
     lastAutoAdvanceTime = 0;
     videoObserver.disconnect();
@@ -618,6 +637,30 @@
     return labels.slice(0, count);
   }
 
+  // 要素が rect 内のサンプリング点で実際に最前面に描画されているか判定する
+  // DOM/CSS の祖先ツリーではなく document.elementsFromPoint でブラウザの実描画を直接確認するため
+  // z-index・transform・任意のポップアップバックドロップ・CSSの書き方に依らず正確に判定できる
+  function isTopmostAtPoint(el, rect) {
+    const cx = rect.left + rect.width / 2;
+    const cy = rect.top + rect.height / 2;
+    const points = [
+      [cx, cy],
+      [rect.left + 2, rect.top + 2],
+      [rect.right - 2, rect.top + 2],
+      [rect.left + 2, rect.bottom - 2],
+      [rect.right - 2, rect.bottom - 2],
+    ];
+    for (const [x, y] of points) {
+      if (x < 0 || y < 0 || x > window.innerWidth || y > window.innerHeight) continue;
+      const stack = document.elementsFromPoint(x, y);
+      if (stack.length === 0) continue;
+      const top = stack[0];
+      // top が el 自身・el の子孫（span 内 a 等）・el の祖先のいずれかなら可視と判定
+      if (top === el || el.contains(top) || top.contains(el)) return true;
+    }
+    return false;
+  }
+
   function getHintableElements() {
     const selector = [
       "a[href]", "button:not([disabled])",
@@ -632,9 +675,11 @@
       if (!el.isConnected) return false;
       const style = window.getComputedStyle(el);
       if (style.visibility === "hidden" || style.display === "none" || style.opacity === "0") return false;
-      // 先祖のクリッピング領域と交差した実可視矩形で判定（カルーセル等の画面外要素を除外）
+      // 先祖 overflow クリッピングとビューポートの交差矩形を取得（高コストな elementsFromPoint の前段フィルタ）
       const rect = getEffectiveVisibleRect(el);
-      return rect !== null && rect.width >= 4 && rect.height >= 4;
+      if (rect === null || rect.width < 4 || rect.height < 4) return false;
+      // ブラウザ実描画ベースの最前面チェック（z-index・transform・ポップアップ等をすべて包括）
+      return isTopmostAtPoint(el, rect);
     });
   }
 
@@ -703,8 +748,17 @@
       else { el.click(); }
       return;
     }
-    if (el.tagName === "A" && el.href) { window.location.href = el.href; }
-    else { el.click(); el.focus(); }
+    if (el.tagName === "A" && el.href) {
+      const rawHref = el.getAttribute("href") || "";
+      if (rawHref === "#" || (rawHref.startsWith("#") && rawHref.length > 0 && !rawHref.includes("/"))) {
+        // fragment-only href: el.click() でクリックハンドラを経由させる。
+        // ページ側で e.preventDefault() を呼べば navigation が止まる（Amazon carousel など）。
+        // window.location.href 直接書き換えではクリックハンドラが発火しないため使わない。
+        el.click();
+      } else {
+        window.location.href = el.href;
+      }
+    } else { el.click(); el.focus(); }
   }
 
   // ===== Find Mode =====

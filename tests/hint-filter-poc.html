@@ -1,0 +1,165 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <title>Hint Filter POC</title>
+  <style>
+    body { font-family: sans-serif; margin: 0; padding: 16px; }
+
+    h2 { margin: 24px 0 8px; font-size: 15px; color: #333; }
+
+    /* ===== ポップアップ背後テスト ===== */
+    .backdrop {
+      display: none;
+      position: fixed; inset: 0;
+      background: rgba(0,0,0,0.4);
+      z-index: 100;
+      align-items: center; justify-content: center;
+    }
+    .backdrop.open { display: flex; }
+
+    [role="dialog"] {
+      background: #fff;
+      border-radius: 8px;
+      padding: 24px;
+      width: 360px;
+      box-shadow: 0 8px 32px rgba(0,0,0,0.3);
+      position: relative;
+      z-index: 101;
+    }
+
+    [role="dialog"] h3 { margin: 0 0 16px; }
+    [role="dialog"] button { margin-right: 8px; padding: 8px 16px; cursor: pointer; }
+
+    /* ===== 横スクロールテスト ===== */
+    .hscroll-container {
+      width: 100%;
+      overflow-x: auto;
+      border: 1px solid #ccc;
+      border-radius: 4px;
+      padding: 8px 0;
+    }
+    .hscroll-inner {
+      display: flex;
+      gap: 12px;
+      width: max-content;
+      padding: 8px 12px;
+    }
+    .hscroll-inner a {
+      flex-shrink: 0;
+      width: 160px;
+      padding: 12px;
+      background: #f0f4ff;
+      border: 1px solid #c5d3f5;
+      border-radius: 6px;
+      text-decoration: none;
+      color: #333;
+      font-size: 13px;
+      display: block;
+    }
+
+    /* ===== 通常リンク ===== */
+    .normal-links { display: flex; gap: 8px; flex-wrap: wrap; }
+    .normal-links a { padding: 8px 12px; background: #e8f5e9; border-radius: 4px; text-decoration: none; color: #333; border: 1px solid #a5d6a7; }
+
+    #log {
+      position: fixed; bottom: 0; left: 0; right: 0;
+      background: rgba(0,0,0,0.85); color: #0f0;
+      font-family: monospace; font-size: 11px;
+      padding: 6px 8px; max-height: 80px; overflow-y: auto; z-index: 9999;
+    }
+
+    button.open-modal { padding: 8px 16px; background: #0077b5; color: #fff; border: none; border-radius: 4px; cursor: pointer; }
+  </style>
+</head>
+<body>
+
+  <h2>通常リンク（ポップアップなしで f を押すとすべてヒントが出るべき）</h2>
+  <div class="normal-links">
+    <a href="#1">Link A</a>
+    <a href="#2">Link B</a>
+    <a href="#3">Link C</a>
+    <button class="open-modal" id="open-btn">ポップアップを開く</button>
+  </div>
+
+  <h2>横スクロール（画面外に出たリンクにはヒントが出ないべき）</h2>
+  <div class="hscroll-container" id="hscroll">
+    <div class="hscroll-inner">
+      <a href="#h1">Card 1 (visible)</a>
+      <a href="#h2">Card 2 (visible)</a>
+      <a href="#h3">Card 3 (visible)</a>
+      <a href="#h4">Card 4 (hidden right)</a>
+      <a href="#h5">Card 5 (hidden right)</a>
+      <a href="#h6">Card 6 (hidden right)</a>
+      <a href="#h7">Card 7 (hidden right)</a>
+      <a href="#h8">Card 8 (hidden right)</a>
+    </div>
+  </div>
+
+  <h2>transformカルーセル（overflow設定なしでtranslateXで隠れているリンクにはヒントが出ないべき）</h2>
+  <div id="carousel-wrapper" style="position:relative;width:300px;height:60px;overflow:hidden">
+    <div id="carousel-track" style="display:flex;width:900px;transform:translateX(0px);transition:transform 0.3s">
+      <a href="#c1" id="c1" style="width:300px;height:60px;background:#e3f2fd;border:1px solid #90caf9;display:flex;align-items:center;justify-content:center;text-decoration:none;color:#333;flex-shrink:0">Slide 1 (visible)</a>
+      <a href="#c2" id="c2" style="width:300px;height:60px;background:#fce4ec;border:1px solid #f48fb1;display:flex;align-items:center;justify-content:center;text-decoration:none;color:#333;flex-shrink:0">Slide 2 (hidden)</a>
+      <a href="#c3" id="c3" style="width:300px;height:60px;background:#f3e5f5;border:1px solid #ce93d8;display:flex;align-items:center;justify-content:center;text-decoration:none;color:#333;flex-shrink:0">Slide 3 (hidden)</a>
+    </div>
+  </div>
+  <button onclick="document.getElementById('carousel-track').style.transform='translateX(-300px)'" style="margin-top:4px;padding:4px 8px;font-size:12px">→ Next slide</button>
+
+  <!-- ポップアップ -->
+  <div class="backdrop" id="modal-backdrop">
+    <div role="dialog" aria-modal="true" aria-label="テストダイアログ" id="modal">
+      <h3>ポップアップ</h3>
+      <p style="margin:0 0 16px;color:#666;font-size:13px">
+        f を押したとき、このダイアログ内のボタンのみにヒントが出るべき。<br>
+        背後の Link A/B/C にはヒントが出てはいけない。
+      </p>
+      <button id="modal-ok">OK</button>
+      <button id="modal-cancel">キャンセル</button>
+      <button id="modal-close" onclick="closeModal()">✕ 閉じる</button>
+    </div>
+  </div>
+
+  <div id="log"></div>
+
+  <script>
+    function log(msg) {
+      const el = document.getElementById('log');
+      el.textContent += msg + '\n';
+      el.scrollTop = el.scrollHeight;
+    }
+
+    function openModal() {
+      document.getElementById('modal-backdrop').classList.add('open');
+      document.getElementById('modal-ok').focus();
+      log('[modal] opened');
+    }
+
+    function closeModal() {
+      document.getElementById('modal-backdrop').classList.remove('open');
+      document.getElementById('open-btn').focus();
+      log('[modal] closed');
+    }
+
+    document.getElementById('open-btn').addEventListener('click', openModal);
+    document.getElementById('modal-ok').addEventListener('click', closeModal);
+    document.getElementById('modal-cancel').addEventListener('click', closeModal);
+
+    // MutationObserver でヒントオーバーレイの出現を監視してログ
+    const obs = new MutationObserver((muts) => {
+      for (const m of muts) {
+        for (const node of m.addedNodes) {
+          if (node.className === 'vimium-hint-overlay') {
+            const hints = node.querySelectorAll('.vimium-hint');
+            log(`[hints] ${hints.length}個のヒントが表示された`);
+            hints.forEach(h => log(`  → "${h.textContent}" @ (${h.style.left}, ${h.style.top})`));
+          }
+        }
+      }
+    });
+    obs.observe(document.documentElement, { childList: true, subtree: true });
+
+    log('[init] ページ準備完了 — f でヒント表示');
+  </script>
+</body>
+</html>
