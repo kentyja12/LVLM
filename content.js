@@ -618,6 +618,30 @@
     return labels.slice(0, count);
   }
 
+  // 要素が rect 内のサンプリング点で実際に最前面に描画されているか判定する
+  // DOM/CSS の祖先ツリーではなく document.elementsFromPoint でブラウザの実描画を直接確認するため
+  // z-index・transform・任意のポップアップバックドロップ・CSSの書き方に依らず正確に判定できる
+  function isTopmostAtPoint(el, rect) {
+    const cx = rect.left + rect.width / 2;
+    const cy = rect.top + rect.height / 2;
+    const points = [
+      [cx, cy],
+      [rect.left + 2, rect.top + 2],
+      [rect.right - 2, rect.top + 2],
+      [rect.left + 2, rect.bottom - 2],
+      [rect.right - 2, rect.bottom - 2],
+    ];
+    for (const [x, y] of points) {
+      if (x < 0 || y < 0 || x > window.innerWidth || y > window.innerHeight) continue;
+      const stack = document.elementsFromPoint(x, y);
+      if (stack.length === 0) continue;
+      const top = stack[0];
+      // top が el 自身・el の子孫（span 内 a 等）・el の祖先のいずれかなら可視と判定
+      if (top === el || el.contains(top) || top.contains(el)) return true;
+    }
+    return false;
+  }
+
   function getHintableElements() {
     const selector = [
       "a[href]", "button:not([disabled])",
@@ -632,9 +656,11 @@
       if (!el.isConnected) return false;
       const style = window.getComputedStyle(el);
       if (style.visibility === "hidden" || style.display === "none" || style.opacity === "0") return false;
-      // 先祖のクリッピング領域と交差した実可視矩形で判定（カルーセル等の画面外要素を除外）
+      // 先祖 overflow クリッピングとビューポートの交差矩形を取得（高コストな elementsFromPoint の前段フィルタ）
       const rect = getEffectiveVisibleRect(el);
-      return rect !== null && rect.width >= 4 && rect.height >= 4;
+      if (rect === null || rect.width < 4 || rect.height < 4) return false;
+      // ブラウザ実描画ベースの最前面チェック（z-index・transform・ポップアップ等をすべて包括）
+      return isTopmostAtPoint(el, rect);
     });
   }
 
