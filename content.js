@@ -509,6 +509,7 @@
     visualMode:          () => enterVisualMode("char"),
     visualLineMode:      () => enterVisualMode("line"),
     toggleVideoAutoAdvance: () => toggleVideoAutoAdvance(),
+    gridClick:             () => enterGridMode(),
   };
 
   // ===== デフォルトキーマップ =====
@@ -571,6 +572,8 @@
     "zH": "scrollFullLeft",
     "zL": "scrollFullRight",
     "zz": "toggleVideoAutoAdvance",
+    // グリッドクリック
+    "m": "gridClick",
   };
 
   let keyMap = { ...DEFAULT_KEY_MAP };
@@ -734,6 +737,153 @@
     hintOverlay = null;
     hintElements = [];
     setMode("normal");
+  }
+
+  // ===== Grid Click Mode =====
+  const GRID_LETTERS = "abcdefghijklmnopqrstuvwxyz";
+  let gridOverlay = null;
+  let gridPendingRow = null;
+  let gridMeta = null; // { rows, cols, cw, ch }
+
+  function enterGridMode() {
+    if (gridOverlay) exitGridMode();
+    gridPendingRow = null;
+
+    const W = window.innerWidth;
+    const H = window.innerHeight;
+    const cols = Math.min(26, Math.floor(W / 50));
+    const rows = Math.min(26, Math.floor(H / 50));
+    const cw = W / cols;
+    const ch = H / rows;
+    gridMeta = { rows, cols, cw, ch };
+
+    const ns = "http://www.w3.org/2000/svg";
+    const svg = document.createElementNS(ns, "svg");
+    svg.id = "vimium-grid-overlay";
+    svg.setAttribute("style", [
+      "position:fixed", "top:0", "left:0",
+      "width:100%", "height:100%",
+      "z-index:2147483646",
+      "pointer-events:none",
+    ].join(";"));
+
+    const bg = document.createElementNS(ns, "rect");
+    bg.setAttribute("width", W); bg.setAttribute("height", H);
+    bg.setAttribute("fill", "rgba(0,0,0,0.07)");
+    svg.appendChild(bg);
+
+    // 縦線
+    for (let c = 1; c < cols; c++) {
+      const ln = document.createElementNS(ns, "line");
+      ln.setAttribute("x1", c * cw); ln.setAttribute("y1", 0);
+      ln.setAttribute("x2", c * cw); ln.setAttribute("y2", H);
+      ln.setAttribute("stroke", "rgba(80,160,255,0.35)");
+      ln.setAttribute("stroke-width", "1");
+      svg.appendChild(ln);
+    }
+    // 横線
+    for (let r = 1; r < rows; r++) {
+      const ln = document.createElementNS(ns, "line");
+      ln.setAttribute("x1", 0);   ln.setAttribute("y1", r * ch);
+      ln.setAttribute("x2", W);   ln.setAttribute("y2", r * ch);
+      ln.setAttribute("stroke", "rgba(80,160,255,0.35)");
+      ln.setAttribute("stroke-width", "1");
+      svg.appendChild(ln);
+    }
+
+    // 列ラベル（上端）
+    for (let c = 0; c < cols; c++) {
+      const t = document.createElementNS(ns, "text");
+      t.setAttribute("x", (c + 0.5) * cw); t.setAttribute("y", 14);
+      t.setAttribute("text-anchor", "middle");
+      t.setAttribute("fill", "rgba(100,210,255,0.95)");
+      t.setAttribute("font-size", "11"); t.setAttribute("font-family", "monospace");
+      t.setAttribute("font-weight", "bold");
+      t.textContent = GRID_LETTERS[c];
+      svg.appendChild(t);
+    }
+    // 行ラベル（左端）
+    for (let r = 0; r < rows; r++) {
+      const t = document.createElementNS(ns, "text");
+      t.setAttribute("x", 12); t.setAttribute("y", (r + 0.5) * ch + 4);
+      t.setAttribute("text-anchor", "middle");
+      t.setAttribute("fill", "rgba(255,210,80,0.95)");
+      t.setAttribute("font-size", "11"); t.setAttribute("font-family", "monospace");
+      t.setAttribute("font-weight", "bold");
+      t.textContent = GRID_LETTERS[r];
+      svg.appendChild(t);
+    }
+
+    document.documentElement.appendChild(svg);
+    gridOverlay = svg;
+    setMode("grid");
+    showHud(`Grid: 行を入力 (a-${GRID_LETTERS[rows - 1]})`, 0);
+  }
+
+  function exitGridMode() {
+    gridOverlay?.remove();
+    gridOverlay = null;
+    gridPendingRow = null;
+    gridMeta = null;
+    setMode("normal");
+    showHud("-- NORMAL --");
+  }
+
+  function highlightGridRow(rowIdx) {
+    gridOverlay?.querySelector(".vimium-grid-row-hl")?.remove();
+    if (!gridOverlay || !gridMeta) return;
+    const { cols, cw, ch } = gridMeta;
+    const ns = "http://www.w3.org/2000/svg";
+    const rect = document.createElementNS(ns, "rect");
+    rect.setAttribute("class", "vimium-grid-row-hl");
+    rect.setAttribute("x", 0); rect.setAttribute("y", rowIdx * ch);
+    rect.setAttribute("width", window.innerWidth); rect.setAttribute("height", ch);
+    rect.setAttribute("fill", "rgba(100,210,255,0.18)");
+    // セル中央に列ラベルを重ねて表示
+    const g = document.createElementNS(ns, "g");
+    g.setAttribute("class", "vimium-grid-row-hl");
+    g.appendChild(rect);
+    for (let c = 0; c < cols; c++) {
+      const t = document.createElementNS(ns, "text");
+      t.setAttribute("x", (c + 0.5) * cw); t.setAttribute("y", rowIdx * ch + ch / 2 + 5);
+      t.setAttribute("text-anchor", "middle");
+      t.setAttribute("fill", "rgba(100,210,255,0.75)");
+      t.setAttribute("font-size", "13"); t.setAttribute("font-family", "monospace");
+      t.setAttribute("font-weight", "bold");
+      t.textContent = GRID_LETTERS[c];
+      g.appendChild(t);
+    }
+    gridOverlay.appendChild(g);
+  }
+
+  function handleGridKey(key) {
+    if (key === "Escape") { exitGridMode(); return; }
+    const idx = GRID_LETTERS.indexOf(key.toLowerCase());
+    if (idx === -1 || !gridMeta) return;
+
+    if (gridPendingRow === null) {
+      if (idx >= gridMeta.rows) return;
+      gridPendingRow = idx;
+      highlightGridRow(idx);
+      showHud(`Grid: 行 ${GRID_LETTERS[idx].toUpperCase()} → 列を入力 (a-${GRID_LETTERS[gridMeta.cols - 1]})`, 0);
+    } else {
+      if (idx >= gridMeta.cols) return;
+      const x = (idx + 0.5) * gridMeta.cw;
+      const y = (gridPendingRow + 0.5) * gridMeta.ch;
+      exitGridMode();
+      simulateGridClick(x, y);
+    }
+  }
+
+  function simulateGridClick(x, y) {
+    const el = document.elementFromPoint(x, y);
+    if (!el) return;
+    const init = { bubbles: true, cancelable: true, clientX: x, clientY: y, view: window };
+    el.dispatchEvent(new MouseEvent("mouseover",  init));
+    el.dispatchEvent(new MouseEvent("mouseenter", { ...init, bubbles: false }));
+    el.dispatchEvent(new MouseEvent("mousedown",  { ...init, buttons: 1 }));
+    el.dispatchEvent(new MouseEvent("mouseup",    init));
+    el.dispatchEvent(new MouseEvent("click",      init));
   }
 
   function activateHint(el) {
@@ -1250,6 +1400,10 @@
       case "hint":
         claimEvent(event);
         handleHintKey(key);
+        return;
+      case "grid":
+        claimEvent(event);
+        handleGridKey(key);
         return;
       case "find": case "vomnibar":
         return;
