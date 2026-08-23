@@ -442,6 +442,29 @@
       box-shadow: 0 0 0 3px rgba(248,81,73,0.2);
     }
 
+    /* ===== カラーピッカー ===== */
+    input[type="color"] {
+      -webkit-appearance: none;
+      appearance: none;
+      width: 36px;
+      height: 28px;
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      background: none;
+      cursor: pointer;
+      padding: 2px;
+      flex-shrink: 0;
+    }
+
+    input[type="color"]::-webkit-color-swatch-wrapper { padding: 0; }
+    input[type="color"]::-webkit-color-swatch { border: none; border-radius: 3px; }
+
+    .color-opacity-row {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+
     /* ===== コードヒント ===== */
     code {
       font-family: "SFMono-Regular", Consolas, monospace;
@@ -747,6 +770,120 @@
             placeholder="例:&#10;mail.google.com&#10;*.notion.so&#10;app.slack.com"></textarea>
         </div>
       </div>
+    </div>
+  </div>
+
+  <!-- ===== グリッドクリック ===== -->
+  <div class="section">
+    <div class="section-header">
+      <span class="section-header-icon">⊞</span>
+      <div>
+        <h2>グリッドクリック</h2>
+        <p><code>m</code> で起動。数字で行、アルファベット(Excel式)で列を選択しクリック</p>
+      </div>
+    </div>
+    <div class="section-body">
+
+      <div class="form-row">
+        <div class="form-row-label">
+          <label>背景オーバーレイ</label>
+          <div class="desc">グリッド表示時の全画面暗転の濃さ（黒固定）</div>
+        </div>
+        <div class="form-row-control">
+          <div class="slider-wrap">
+            <input type="range" id="grid-bg-alpha" min="0" max="50" step="1">
+            <span class="range-badge" id="grid-bg-alpha-val">7 %</span>
+          </div>
+        </div>
+      </div>
+
+      <div class="form-row">
+        <div class="form-row-label">
+          <label>グリッド線</label>
+          <div class="desc">縦横のグリッド線の色と不透明度</div>
+        </div>
+        <div class="form-row-control color-opacity-row">
+          <input type="color" id="grid-line-color" value="#a0a0a0">
+          <div class="slider-wrap">
+            <input type="range" id="grid-line-alpha" min="0" max="100" step="1">
+            <span class="range-badge" id="grid-line-alpha-val">40 %</span>
+          </div>
+        </div>
+      </div>
+
+      <div class="form-row">
+        <div class="form-row-label">
+          <label>辺ラベル</label>
+          <div class="desc">行・列を示す端のアルファベットの色</div>
+        </div>
+        <div class="form-row-control">
+          <input type="color" id="grid-label-color" value="#c8c8c8">
+        </div>
+      </div>
+
+      <div class="form-row">
+        <div class="form-row-label">
+          <label>行ハイライト背景</label>
+          <div class="desc">行キー入力後のハイライト色と不透明度</div>
+        </div>
+        <div class="form-row-control color-opacity-row">
+          <input type="color" id="grid-hl-bg-color" value="#b4b4b4">
+          <div class="slider-wrap">
+            <input type="range" id="grid-hl-bg-alpha" min="0" max="100" step="1">
+            <span class="range-badge" id="grid-hl-bg-alpha-val">18 %</span>
+          </div>
+        </div>
+      </div>
+
+      <div class="form-row">
+        <div class="form-row-label">
+          <label>セルラベル</label>
+          <div class="desc">ハイライト行の各セルに表示される列ラベルの色</div>
+        </div>
+        <div class="form-row-control">
+          <input type="color" id="grid-hl-label-color" value="#d2d2d2">
+        </div>
+      </div>
+
+      <div class="form-row">
+        <div class="form-row-label">
+          <label for="grid-font-size">辺ラベルフォントサイズ</label>
+          <div class="desc">行・列を示す端ラベルの文字サイズ</div>
+        </div>
+        <div class="form-row-control">
+          <div class="slider-wrap">
+            <input type="range" id="grid-font-size" min="8" max="24" step="1">
+            <span class="range-badge" id="grid-font-size-val">13 px</span>
+          </div>
+        </div>
+      </div>
+
+      <div class="form-row">
+        <div class="form-row-label">
+          <label for="grid-hl-font-size">セルラベルフォントサイズ</label>
+          <div class="desc">ハイライト行のセル内ラベルの文字サイズ</div>
+        </div>
+        <div class="form-row-control">
+          <div class="slider-wrap">
+            <input type="range" id="grid-hl-font-size" min="8" max="28" step="1">
+            <span class="range-badge" id="grid-hl-font-size-val">16 px</span>
+          </div>
+        </div>
+      </div>
+
+      <div class="form-row">
+        <div class="form-row-label">
+          <label for="grid-cell-size">セルサイズ</label>
+          <div class="desc">グリッド1マスのサイズ（小さいほど精度↑・文字が密になる）</div>
+        </div>
+        <div class="form-row-control">
+          <div class="slider-wrap">
+            <input type="range" id="grid-cell-size" min="5" max="120" step="5">
+            <span class="range-badge" id="grid-cell-size-val">50 px</span>
+          </div>
+        </div>
+      </div>
+
     </div>
   </div>
 

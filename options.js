@@ -13,6 +13,17 @@ const DEFAULT_SETTINGS = {
   hudTimeout: 1500,
   keyMappings: "",
   excludedSites: "",
+  // グリッドクリック
+  gridBgAlpha:       7,
+  gridLineColor:     "#a0a0a0",
+  gridLineAlpha:     40,
+  gridLabelColor:    "#c8c8c8",
+  gridHlBgColor:     "#b4b4b4",
+  gridHlBgAlpha:     18,
+  gridHlLabelColor:  "#d2d2d2",
+  gridFontSize:      13,
+  gridHlFontSize:    16,
+  gridCellSize:      50,
 };
 
 // ===== 要素参照 =====
@@ -39,6 +50,23 @@ const els = {
   hudTimeoutVal:      document.getElementById("hud-timeout-val"),
   keyMappings:        document.getElementById("key-mappings"),
   excludedSites:      document.getElementById("excluded-sites"),
+  // グリッドクリック
+  gridBgAlpha:        document.getElementById("grid-bg-alpha"),
+  gridBgAlphaVal:     document.getElementById("grid-bg-alpha-val"),
+  gridLineColor:      document.getElementById("grid-line-color"),
+  gridLineAlpha:      document.getElementById("grid-line-alpha"),
+  gridLineAlphaVal:   document.getElementById("grid-line-alpha-val"),
+  gridLabelColor:     document.getElementById("grid-label-color"),
+  gridHlBgColor:      document.getElementById("grid-hl-bg-color"),
+  gridHlBgAlpha:      document.getElementById("grid-hl-bg-alpha"),
+  gridHlBgAlphaVal:   document.getElementById("grid-hl-bg-alpha-val"),
+  gridHlLabelColor:   document.getElementById("grid-hl-label-color"),
+  gridFontSize:       document.getElementById("grid-font-size"),
+  gridFontSizeVal:    document.getElementById("grid-font-size-val"),
+  gridHlFontSize:     document.getElementById("grid-hl-font-size"),
+  gridHlFontSizeVal:  document.getElementById("grid-hl-font-size-val"),
+  gridCellSize:       document.getElementById("grid-cell-size"),
+  gridCellSizeVal:    document.getElementById("grid-cell-size-val"),
   btnSave:            document.getElementById("btn-save"),
   btnDiscard:         document.getElementById("btn-discard"),
   btnReset:           document.getElementById("btn-reset"),
@@ -59,6 +87,12 @@ const syncFns = [
   bindSlider(els.repeatInterval,els.repeatIntervalVal, v => `${v} ms`),
   bindSlider(els.vomnibarMax,   els.vomnibarMaxVal,    v => `${v} 件`),
   bindSlider(els.hudTimeout,    els.hudTimeoutVal,     v => `${v} ms`),
+  bindSlider(els.gridBgAlpha,    els.gridBgAlphaVal,    v => `${v} %`),
+  bindSlider(els.gridLineAlpha,  els.gridLineAlphaVal,  v => `${v} %`),
+  bindSlider(els.gridHlBgAlpha,  els.gridHlBgAlphaVal,  v => `${v} %`),
+  bindSlider(els.gridFontSize,   els.gridFontSizeVal,   v => `${v} px`),
+  bindSlider(els.gridHlFontSize, els.gridHlFontSizeVal, v => `${v} px`),
+  bindSlider(els.gridCellSize,   els.gridCellSizeVal,   v => `${v} px`),
 ];
 
 // ===== トグルラベル同期 =====
@@ -108,6 +142,16 @@ function readFromUI() {
     hudTimeout:              parseInt(els.hudTimeout.value, 10),
     keyMappings:             els.keyMappings.value.trim(),
     excludedSites:           els.excludedSites.value.trim(),
+    gridBgAlpha:             parseInt(els.gridBgAlpha.value, 10),
+    gridLineColor:           els.gridLineColor.value,
+    gridLineAlpha:           parseInt(els.gridLineAlpha.value, 10),
+    gridLabelColor:          els.gridLabelColor.value,
+    gridHlBgColor:           els.gridHlBgColor.value,
+    gridHlBgAlpha:           parseInt(els.gridHlBgAlpha.value, 10),
+    gridHlLabelColor:        els.gridHlLabelColor.value,
+    gridFontSize:            parseInt(els.gridFontSize.value, 10),
+    gridHlFontSize:          parseInt(els.gridHlFontSize.value, 10),
+    gridCellSize:            parseInt(els.gridCellSize.value, 10),
   };
 }
 
@@ -125,6 +169,16 @@ function applyToUI(s) {
   els.hudTimeout.value        = s.hudTimeout;
   els.keyMappings.value       = s.keyMappings;
   els.excludedSites.value     = s.excludedSites;
+  els.gridBgAlpha.value       = s.gridBgAlpha;
+  els.gridLineColor.value     = s.gridLineColor;
+  els.gridLineAlpha.value     = s.gridLineAlpha;
+  els.gridLabelColor.value    = s.gridLabelColor;
+  els.gridHlBgColor.value     = s.gridHlBgColor;
+  els.gridHlBgAlpha.value     = s.gridHlBgAlpha;
+  els.gridHlLabelColor.value  = s.gridHlLabelColor;
+  els.gridFontSize.value      = s.gridFontSize;
+  els.gridHlFontSize.value    = s.gridHlFontSize;
+  els.gridCellSize.value      = s.gridCellSize;
 
   // ラベル・バッジを全て更新
   syncFns.forEach(fn => fn());
