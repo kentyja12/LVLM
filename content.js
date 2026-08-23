@@ -26,6 +26,17 @@
     // キーバインド・除外
     keyMappings: "",
     excludedSites: "",
+    // グリッドクリック
+    gridBgAlpha:       7,
+    gridLineColor:     "#a0a0a0",
+    gridLineAlpha:     40,
+    gridLabelColor:    "#c8c8c8",
+    gridHlBgColor:     "#b4b4b4",
+    gridHlBgAlpha:     18,
+    gridHlLabelColor:  "#d2d2d2",
+    gridFontSize:      13,
+    gridHlFontSize:    16,
+    gridCellSize:      50,
   };
 
   let settings = { ...DEFAULT_SETTINGS };
@@ -740,22 +751,59 @@
   }
 
   // ===== Grid Click Mode =====
-  const GRID_LETTERS = "abcdefghijklmnopqrstuvwxyz";
   let gridOverlay = null;
-  let gridPendingRow = null;
-  let gridMeta = null; // { rows, cols, cw, ch }
+  let gridPendingRow = null; // null = 行入力中, number = 列入力中
+  let gridRowBuffer  = "";   // 行入力バッファ（数字列）
+  let gridColBuffer  = "";   // 列入力バッファ（アルファベット列）
+  let gridMeta = null;       // { rows, cols, cw, ch }
+
+  function hexAlpha(hex, alphaPct) {
+    const r = parseInt(hex.slice(1, 3), 16);
+    const g = parseInt(hex.slice(3, 5), 16);
+    const b = parseInt(hex.slice(5, 7), 16);
+    return `rgba(${r},${g},${b},${(alphaPct / 100).toFixed(2)})`;
+  }
+
+  // 0-indexed → Excel 式列ラベル (0→"A", 25→"Z", 26→"AA", ...)
+  function gridColLabel(n) {
+    let label = "";
+    n++;
+    while (n > 0) {
+      n--;
+      label = String.fromCharCode(65 + (n % 26)) + label;
+      n = Math.floor(n / 26);
+    }
+    return label;
+  }
+
+  // typed prefix に前方一致する列インデックス一覧
+  function gridColMatches(prefix) {
+    const p = prefix.toUpperCase();
+    const matches = [];
+    for (let c = 0; c < gridMeta.cols; c++) {
+      if (gridColLabel(c).startsWith(p)) matches.push(c);
+    }
+    return matches;
+  }
 
   function enterGridMode() {
     if (gridOverlay) exitGridMode();
     gridPendingRow = null;
+    gridRowBuffer  = "";
+    gridColBuffer  = "";
 
     const W = window.innerWidth;
     const H = window.innerHeight;
-    const cols = Math.min(26, Math.floor(W / 50));
-    const rows = Math.min(26, Math.floor(H / 50));
+    const cellSize = settings.gridCellSize ?? 50;
+    const cols = Math.max(1, Math.floor(W / cellSize));
+    const rows = Math.max(1, Math.floor(H / cellSize));
     const cw = W / cols;
     const ch = H / rows;
     gridMeta = { rows, cols, cw, ch };
+
+    const lineColor  = hexAlpha(settings.gridLineColor ?? "#a0a0a0", settings.gridLineAlpha ?? 40);
+    const labelColor = settings.gridLabelColor ?? "#c8c8c8";
+    const fontSize   = settings.gridFontSize   ?? 13;
 
     const ns = "http://www.w3.org/2000/svg";
     const svg = document.createElementNS(ns, "svg");
@@ -769,7 +817,7 @@
 
     const bg = document.createElementNS(ns, "rect");
     bg.setAttribute("width", W); bg.setAttribute("height", H);
-    bg.setAttribute("fill", "rgba(0,0,0,0.07)");
+    bg.setAttribute("fill", `rgba(0,0,0,${((settings.gridBgAlpha ?? 7) / 100).toFixed(2)})`);
     svg.appendChild(bg);
 
     // 縦線
@@ -777,53 +825,53 @@
       const ln = document.createElementNS(ns, "line");
       ln.setAttribute("x1", c * cw); ln.setAttribute("y1", 0);
       ln.setAttribute("x2", c * cw); ln.setAttribute("y2", H);
-      ln.setAttribute("stroke", "rgba(80,160,255,0.35)");
-      ln.setAttribute("stroke-width", "1");
+      ln.setAttribute("stroke", lineColor); ln.setAttribute("stroke-width", "1");
       svg.appendChild(ln);
     }
     // 横線
     for (let r = 1; r < rows; r++) {
       const ln = document.createElementNS(ns, "line");
-      ln.setAttribute("x1", 0);   ln.setAttribute("y1", r * ch);
-      ln.setAttribute("x2", W);   ln.setAttribute("y2", r * ch);
-      ln.setAttribute("stroke", "rgba(80,160,255,0.35)");
-      ln.setAttribute("stroke-width", "1");
+      ln.setAttribute("x1", 0); ln.setAttribute("y1", r * ch);
+      ln.setAttribute("x2", W); ln.setAttribute("y2", r * ch);
+      ln.setAttribute("stroke", lineColor); ln.setAttribute("stroke-width", "1");
       svg.appendChild(ln);
     }
 
-    // 列ラベル（上端）
+    // 列ラベル（上端） — Excel 式アルファベット
     for (let c = 0; c < cols; c++) {
       const t = document.createElementNS(ns, "text");
-      t.setAttribute("x", (c + 0.5) * cw); t.setAttribute("y", 14);
+      t.setAttribute("x", (c + 0.5) * cw); t.setAttribute("y", fontSize + 2);
       t.setAttribute("text-anchor", "middle");
-      t.setAttribute("fill", "rgba(100,210,255,0.95)");
-      t.setAttribute("font-size", "11"); t.setAttribute("font-family", "monospace");
+      t.setAttribute("fill", labelColor);
+      t.setAttribute("font-size", fontSize); t.setAttribute("font-family", "monospace");
       t.setAttribute("font-weight", "bold");
-      t.textContent = GRID_LETTERS[c];
+      t.textContent = gridColLabel(c);
       svg.appendChild(t);
     }
-    // 行ラベル（左端）
+    // 行ラベル（左端） — 数字
     for (let r = 0; r < rows; r++) {
       const t = document.createElementNS(ns, "text");
-      t.setAttribute("x", 12); t.setAttribute("y", (r + 0.5) * ch + 4);
+      t.setAttribute("x", Math.max(fontSize, 10)); t.setAttribute("y", (r + 0.5) * ch + fontSize * 0.4);
       t.setAttribute("text-anchor", "middle");
-      t.setAttribute("fill", "rgba(255,210,80,0.95)");
-      t.setAttribute("font-size", "11"); t.setAttribute("font-family", "monospace");
+      t.setAttribute("fill", labelColor);
+      t.setAttribute("font-size", fontSize); t.setAttribute("font-family", "monospace");
       t.setAttribute("font-weight", "bold");
-      t.textContent = GRID_LETTERS[r];
+      t.textContent = String(r + 1);
       svg.appendChild(t);
     }
 
     document.documentElement.appendChild(svg);
     gridOverlay = svg;
     setMode("grid");
-    showHud(`Grid: 行を入力 (a-${GRID_LETTERS[rows - 1]})`, 0);
+    showHud(`Grid: 行番号を入力 (1-${rows})`, 0);
   }
 
   function exitGridMode() {
     gridOverlay?.remove();
     gridOverlay = null;
     gridPendingRow = null;
+    gridRowBuffer  = "";
+    gridColBuffer  = "";
     gridMeta = null;
     setMode("normal");
     showHud("-- NORMAL --");
@@ -833,45 +881,136 @@
     gridOverlay?.querySelector(".vimium-grid-row-hl")?.remove();
     if (!gridOverlay || !gridMeta) return;
     const { cols, cw, ch } = gridMeta;
+    const hlBg         = hexAlpha(settings.gridHlBgColor ?? "#b4b4b4", settings.gridHlBgAlpha ?? 18);
+    const hlLabelColor = settings.gridHlLabelColor ?? "#d2d2d2";
+    const hlFontSize   = settings.gridHlFontSize   ?? 16;
+
     const ns = "http://www.w3.org/2000/svg";
-    const rect = document.createElementNS(ns, "rect");
-    rect.setAttribute("class", "vimium-grid-row-hl");
-    rect.setAttribute("x", 0); rect.setAttribute("y", rowIdx * ch);
-    rect.setAttribute("width", window.innerWidth); rect.setAttribute("height", ch);
-    rect.setAttribute("fill", "rgba(100,210,255,0.18)");
-    // セル中央に列ラベルを重ねて表示
     const g = document.createElementNS(ns, "g");
     g.setAttribute("class", "vimium-grid-row-hl");
+
+    const rect = document.createElementNS(ns, "rect");
+    rect.setAttribute("x", 0); rect.setAttribute("y", rowIdx * ch);
+    rect.setAttribute("width", window.innerWidth); rect.setAttribute("height", ch);
+    rect.setAttribute("fill", hlBg);
     g.appendChild(rect);
+
+    // セル中央に列ラベルを表示
     for (let c = 0; c < cols; c++) {
       const t = document.createElementNS(ns, "text");
-      t.setAttribute("x", (c + 0.5) * cw); t.setAttribute("y", rowIdx * ch + ch / 2 + 5);
+      t.setAttribute("x", (c + 0.5) * cw); t.setAttribute("y", rowIdx * ch + ch / 2 + hlFontSize * 0.35);
       t.setAttribute("text-anchor", "middle");
-      t.setAttribute("fill", "rgba(100,210,255,0.75)");
-      t.setAttribute("font-size", "13"); t.setAttribute("font-family", "monospace");
+      t.setAttribute("fill", hlLabelColor);
+      t.setAttribute("font-size", hlFontSize); t.setAttribute("font-family", "monospace");
       t.setAttribute("font-weight", "bold");
-      t.textContent = GRID_LETTERS[c];
+      t.textContent = gridColLabel(c);
       g.appendChild(t);
     }
     gridOverlay.appendChild(g);
   }
 
-  function handleGridKey(key) {
-    if (key === "Escape") { exitGridMode(); return; }
-    const idx = GRID_LETTERS.indexOf(key.toLowerCase());
-    if (idx === -1 || !gridMeta) return;
-
-    if (gridPendingRow === null) {
-      if (idx >= gridMeta.rows) return;
-      gridPendingRow = idx;
-      highlightGridRow(idx);
-      showHud(`Grid: 行 ${GRID_LETTERS[idx].toUpperCase()} → 列を入力 (a-${GRID_LETTERS[gridMeta.cols - 1]})`, 0);
-    } else {
-      if (idx >= gridMeta.cols) return;
-      const x = (idx + 0.5) * gridMeta.cw;
+  function processGridColInput() {
+    const matches = gridColMatches(gridColBuffer);
+    if (matches.length === 0) {
+      // 一致なし — 最後の文字を取り消す
+      gridColBuffer = gridColBuffer.slice(0, -1);
+      showHud(`Grid: 行 ${gridPendingRow + 1} → 列 "${gridColBuffer || ""}" (一致なし)`, 0);
+      return;
+    }
+    const exact = matches.find(c => gridColLabel(c) === gridColBuffer);
+    if (exact !== undefined && matches.length === 1) {
+      // 完全一致かつ候補1つ → 即発火
+      const x = (exact + 0.5) * gridMeta.cw;
       const y = (gridPendingRow + 0.5) * gridMeta.ch;
       exitGridMode();
       simulateGridClick(x, y);
+    } else {
+      // 前方一致が複数 or 完全一致だが他にも候補あり → 入力継続
+      showHud(`Grid: 行 ${gridPendingRow + 1} → 列 "${gridColBuffer}"… (Enter で確定 / 続けて入力)`, 0);
+    }
+  }
+
+  function handleGridKey(key) {
+    if (key === "Escape") { exitGridMode(); return; }
+    if (!gridMeta) return;
+
+    // ===== 行入力フェーズ =====
+    if (gridPendingRow === null) {
+      if (/^[0-9]$/.test(key)) {
+        const next = gridRowBuffer + key;
+        const r = parseInt(next, 10) - 1;
+        if (r >= 0 && r < gridMeta.rows) {
+          gridRowBuffer = next;
+          highlightGridRow(r);
+          showHud(`Grid: 行 ${next}  (続けて数字 / アルファベットで列フェーズへ)`, 0);
+        }
+        return;
+      }
+      if (key === "Backspace") {
+        gridRowBuffer = gridRowBuffer.slice(0, -1);
+        if (gridRowBuffer === "") {
+          gridOverlay?.querySelector(".vimium-grid-row-hl")?.remove();
+          showHud(`Grid: 行番号を入力 (1-${gridMeta.rows})`, 0);
+        } else {
+          const r = parseInt(gridRowBuffer, 10) - 1;
+          if (r >= 0 && r < gridMeta.rows) highlightGridRow(r);
+        }
+        return;
+      }
+      if (/^[a-zA-Z]$/.test(key) && gridRowBuffer !== "") {
+        // アルファベットが来たら行を確定して列フェーズへ
+        const r = parseInt(gridRowBuffer, 10) - 1;
+        if (r >= 0 && r < gridMeta.rows) {
+          gridPendingRow = r;
+          gridColBuffer = key.toUpperCase();
+          processGridColInput();
+        }
+        return;
+      }
+      if ((key === "Enter" || key === " ") && gridRowBuffer !== "") {
+        const r = parseInt(gridRowBuffer, 10) - 1;
+        if (r >= 0 && r < gridMeta.rows) {
+          gridPendingRow = r;
+          gridColBuffer  = "";
+          showHud(`Grid: 行 ${r + 1} → 列を入力 (A-${gridColLabel(gridMeta.cols - 1)})`, 0);
+        }
+        return;
+      }
+      return;
+    }
+
+    // ===== 列入力フェーズ =====
+    if (/^[a-zA-Z]$/.test(key)) {
+      gridColBuffer += key.toUpperCase();
+      processGridColInput();
+      return;
+    }
+    if (key === "Backspace") {
+      if (gridColBuffer.length > 0) {
+        gridColBuffer = gridColBuffer.slice(0, -1);
+        if (gridColBuffer === "") {
+          showHud(`Grid: 行 ${gridPendingRow + 1} → 列を入力 (A-${gridColLabel(gridMeta.cols - 1)})`, 0);
+        } else {
+          processGridColInput();
+        }
+      } else {
+        // 列バッファが空 → 行フェーズに戻る
+        gridPendingRow = null;
+        gridOverlay?.querySelector(".vimium-grid-row-hl")?.remove();
+        showHud(`Grid: 行 ${gridRowBuffer} (続けて数字 / アルファベットで列フェーズへ)`, 0);
+      }
+      return;
+    }
+    if (key === "Enter" || key === " ") {
+      const matches = gridColMatches(gridColBuffer);
+      if (matches.length > 0) {
+        const colIdx = matches[0];
+        const x = (colIdx + 0.5) * gridMeta.cw;
+        const y = (gridPendingRow + 0.5) * gridMeta.ch;
+        exitGridMode();
+        simulateGridClick(x, y);
+      }
+      return;
     }
   }
 
